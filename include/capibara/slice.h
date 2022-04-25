@@ -1,5 +1,7 @@
 #pragma once
 
+#include "mapping.h"
+
 namespace capibara {
 namespace slice {
     struct All {
@@ -224,12 +226,12 @@ CAPIBARA_INLINE constexpr auto range(Start start, End end, Stride stride) {
 
 template<typename Start, typename End>
 CAPIBARA_INLINE constexpr auto range(Start start, End end) {
-    return range(start, end, One);
+    return range(start, end, S1);
 }
 
 template<typename Count>
 CAPIBARA_INLINE constexpr auto first(Count count) {
-    return range(Zero, count);
+    return range(S0, count);
 }
 
 template<typename Size>

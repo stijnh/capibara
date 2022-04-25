@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cstddef>
+#include <limits>
+#include <stdexcept>
+
 #if ((__GNUC__ == 4 && __GNUC_MINOR__ >= 2) || __GNUC__ > 4)
     #define CAPIBARA_INLINE __attribute__((always_inline)) inline
 #elif EIGEN_COMP_MSVC || EIGEN_COMP_ICC
@@ -108,5 +112,49 @@ DEFINE_FIXED_AXIS_CONSTANT(4)
 DEFINE_FIXED_AXIS_CONSTANT(5)
 DEFINE_FIXED_AXIS_CONSTANT(6)
 #undef DEFINE_FIXED_AXIS_CONSTANT
+template<typename T, T Value>
+struct ConstInt {
+    operator T() const {
+        return Value;
+    }
+
+    T operator()() const {
+        return Value;
+    }
+};
+
+template<typename T, T Left, T Right>
+ConstInt<T, Left + Right> operator+(ConstInt<T, Left>, ConstInt<T, Right>) {
+    return {};
+}
+
+template<typename T, T Left, T Right>
+ConstInt<T, Left * Right> operator*(ConstInt<T, Left>, ConstInt<T, Right>) {
+    return {};
+}
+
+template<typename T, T Left, T Right>
+ConstInt<T, Left / Right> operator/(ConstInt<T, Left>, ConstInt<T, Right>) {
+    return {};
+}
+
+template<typename T, T Left, T Right>
+ConstInt<T, Left % Right> operator%(ConstInt<T, Left>, ConstInt<T, Right>) {
+    return {};
+}
+
+template<typename T>
+CAPIBARA_INLINE constexpr T convert_integer(T value) {
+    return value;
+}
+
+template<typename R, typename T, T Value>
+CAPIBARA_INLINE constexpr ConstInt<R, (T)Value>
+convert_integer(ConstInt<T, Value>) {
+    return {};
+}
+
+template<typename T, T N>
+static constexpr ConstInt<T, N> const_int = {};
 
 }  // namespace capibara

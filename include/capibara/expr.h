@@ -1,5 +1,8 @@
 #pragma once
 
+#include "slice.h"
+#include "unary.h"
+
 namespace capibara {
 
 template<typename Derived, size_t Rank>
@@ -185,7 +188,7 @@ struct Expr<Derived, AccessMode::ReadOnly>:
 
     template<typename Axis>
     auto remove_axis(Axis axis) const {
-        return make_slice_expr(self(), axis, convert_integer<index_type>(Zero));
+        return make_slice_expr(self(), axis, convert_integer<index_type>(S0));
     }
 
     template<typename Axis, typename Index>

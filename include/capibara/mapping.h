@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tuple.h"
+#include "dimensions.h"
 
 namespace capibara {
 namespace mapping {

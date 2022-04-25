@@ -14,7 +14,7 @@ enum struct AccessMode {
 };
 
 template<typename Derived, AccessMode = AccessMode::ReadOnly>
-struct Expr {};
+struct Expr;
 
 template<typename Derived>
 using View = Expr<Derived, AccessMode::ReadWrite>;
@@ -31,6 +31,7 @@ struct BinaryExpr;
 template<typename F, typename Op>
 struct MappingExpr;
 
-template<typename T, size_t N>
-struct Array;
+template<typename T, typename D>
+struct ArrayBase;
+
 }  // namespace capibara
