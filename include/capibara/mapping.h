@@ -1,6 +1,7 @@
 #pragma once
 
 #include "dimensions.h"
+#include "forwards.h"
 
 namespace capibara {
 namespace mapping {
@@ -507,12 +508,17 @@ namespace mapping {
 }  // namespace mapping
 
 template<typename F, typename Op>
+struct MappingCursor {};
+
+template<typename F, typename Op>
 struct ExprTraits<MappingExpr<F, Op>> {
     static_assert(F::old_rank == ExprTraits<Op>::rank, "internal error");
 
     static constexpr size_t rank = F::new_rank;
     using value_type = typename ExprTraits<Op>::value_type;
     using index_type = typename ExprTraits<Op>::index_type;
+    using cursor_type = MappingCursor<F, Op>;
+    using nested_type = MappingExpr<F, Op>;
 };
 
 template<typename F, typename Op>

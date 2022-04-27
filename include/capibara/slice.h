@@ -242,7 +242,7 @@ CAPIBARA_INLINE constexpr auto split(Size size) {
 
 template<typename Expr, typename Axis, typename Slice>
 CAPIBARA_INLINE auto make_slice_expr(const Expr& expr, Axis axis, Slice slice) {
-    auto axis_ = into_axis(axis);
+    auto axis_ = into_axis<Expr::rank>(axis);
     auto op =
         slice::IntoMapper<Slice>::template into<decltype(axis_), Expr::rank>(
             axis_,

@@ -3,7 +3,7 @@ fmt:
 
 test: build
 	cd build && make -p tests
-	build/tests/tests
+	#build/tests/tests
 
 build: CMakeLists.txt
 	mkdir -p build

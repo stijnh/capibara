@@ -77,6 +77,8 @@ struct Expr<Derived, AccessMode::ReadOnly>:
     static constexpr size_t rank = expr_traits::rank;
     using value_type = typename expr_traits::value_type;
     using index_type = typename expr_traits::index_type;
+    using cursor_type = typename expr_traits::cursor_type;
+    using nested_type = typename expr_traits::nested_type;
     using ndindex_type = std::array<index_type, rank>;
 
     CAPIBARA_INLINE
@@ -87,6 +89,10 @@ struct Expr<Derived, AccessMode::ReadOnly>:
     CAPIBARA_INLINE
     self_type& self() {
         return *static_cast<self_type*>(this);
+    }
+
+    CAPIBARA_INLINE cursor_type cursor() const {
+        return cursor_type(self());
     }
 
     ndindex_type shape() const {
@@ -139,8 +145,8 @@ struct Expr<Derived, AccessMode::ReadOnly>:
 
     template<typename AxisA, typename AxisB>
     auto swap_axes(AxisA raw_a, AxisB raw_b) const {
-        auto a = into_axis(raw_a);
-        auto b = into_axis(raw_b);
+        auto a = into_axis<rank>(raw_a);
+        auto b = into_axis<rank>(raw_b);
         auto op = mapping::SwapAxes<decltype(a), decltype(b), rank>(a, b);
         return make_mapping_expr(op, self());
     }
@@ -155,7 +161,7 @@ struct Expr<Derived, AccessMode::ReadOnly>:
 
     template<typename Axis>
     auto reverse_axis(Axis axis) const {
-        auto axis_ = into_axis(axis);
+        auto axis_ = into_axis<rank>(axis);
         auto dim = self().dim(axis_);
         auto op = mapping::ReverseAxis<decltype(axis_), decltype(dim), rank>(
             axis_,
@@ -238,10 +244,6 @@ struct Expr<Derived, AccessMode::ReadWrite>:
     template<typename... Is>
     value_type& operator()(Is... idxs) {
         ndindex_type idx = {idxs...};
-        return self().access(idx);
-    }
-
-    value_type eval(ndindex_type idx) const {
         return self().access(idx);
     }
 

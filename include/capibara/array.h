@@ -8,17 +8,26 @@
 #include "forwards.h"
 
 namespace capibara {
+
+template<typename T, typename D>
+struct ArrayCursor;
+
 template<typename T, typename D>
 struct ExprTraits<ArrayBase<T, D>> {
     static constexpr size_t rank = D::rank;
     using value_type = T;
     using index_type = size_t;
+    using cursor_type = ArrayCursor<T, D>;
+    using nested_type = const ArrayBase<T, D>&;
 };
 
 template<typename T, typename D>
 struct ArrayBase: View<ArrayBase<T, D>> {
+    friend ArrayCursor<T, D>;
+
     using base_type = View<ArrayBase<T, D>>;
     using base_type::rank;
+    using typename base_type::cursor_type;
     using typename base_type::index_type;
     using typename base_type::ndindex_type;
     using typename base_type::value_type;
@@ -28,6 +37,7 @@ struct ArrayBase: View<ArrayBase<T, D>> {
     using base_type::operator=;
 
     ArrayBase(dims_type dims) : dims_(std::move(dims)) {
+        std::cout << this->size() << std::endl;
         base_.reset(new T[this->size()]);
     }
 
@@ -120,5 +130,78 @@ IMPL_ARRAY_FOR_TYPE(b, bool)
 IMPL_ARRAY_FOR_TYPE(c, std::complex<double>)
 IMPL_ARRAY_FOR_TYPE(cf, std::complex<float>)
 #undef IMPL_ARRAY_FOR_TYPE
+
+namespace array_helpers {
+    template<typename Axis, size_t N>
+    struct Stride {
+        using return_type = ptrdiff_t;
+
+        template<typename D>
+        static return_type call(Axis axis, const D& dims) {
+            ptrdiff_t stride = 1;
+
+            for (size_t i = N - 1; i > axis; i--) {
+                stride *= dims[i];
+            }
+
+            return stride;
+        }
+    };
+
+    template<size_t N>
+    struct Stride<Axis<N - 1>, N> {
+        using return_type = ConstDiff<1>;
+
+        template<typename D>
+        static return_type call(Axis<N - 1>, const D&) {
+            return {};
+        }
+    };
+
+    template<size_t K, size_t N>
+    struct Stride<Axis<K>, N> {
+        template<typename D>
+        static auto call(Axis<K>, const D& dims) {
+            return dims[Axis<K + 1> {}]
+                * Stride<Axis<K + 1>, N>::call(Axis<K + 1> {}, dims);
+        }
+    };
+
+    template<typename Axis>
+    struct Stride<Axis, 1> {
+        template<typename D>
+        static auto call(Axis, const D& dims) {
+            return dims[Axis0];
+        }
+    };
+}  // namespace array_helpers
+
+template<typename T, typename D>
+struct ArrayCursor {
+    using value_type = T;
+    static constexpr size_t rank = D::rank;
+
+    ArrayCursor(const ArrayBase<T, D>& inner) :
+        inner_(inner),
+        cursor_(inner.base_.get()) {}
+
+    template<typename Axis>
+    auto stride(Axis axis) {
+        return array_helpers::Stride<Axis, rank>(axis, inner_.dims_);
+    }
+
+    template<typename Axis, typename Diff>
+    void advance(Axis axis, Diff steps) {
+        cursor_ += stride(axis) * steps;
+    }
+
+    value_type eval() const {
+        return *cursor_;
+    }
+
+  private:
+    value_type* cursor_;
+    const ArrayBase<T, D>& inner_;
+};
 
 }  // namespace capibara

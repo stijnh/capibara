@@ -5,45 +5,47 @@
 #include <tuple>
 #include <utility>
 
+#include "const_int.h"
 #include "types.h"
 
 namespace capibara {
 
-template<size_t N>
-using ConstSize = ConstInt<size_t, N>;
-
-CAPIBARA_INLINE constexpr size_t convert_size(size_t value) {
-    return value;
-}
-
-template<typename T, T Value>
-CAPIBARA_INLINE constexpr ConstSize<Value> convert_size(ConstInt<T, Value>) {
-    return {};
-}
-
-template<size_t N>
-static constexpr ConstSize<N> S = {};
-static constexpr ConstSize<0> S0 = {};
-static constexpr ConstSize<1> S1 = {};
-static constexpr ConstSize<2> S2 = {};
+template<typename... Ts>
+struct Dimensions;
 
 using DynSize = size_t;
 static constexpr size_t Dyn = (size_t)-1;
-
-template<typename... Ts>
-struct Dimensions;
 
 namespace dimension_helpers {
 
     template<typename T, size_t I, typename Axis, typename... Values>
     struct Getter {};
 
-    template<typename T, typename... Values>
-    struct Getter<T, 0, DynAxis, Values...> {
+    template<typename T, size_t N>
+    struct Getter<T, 0, DynAxis<N>> {
         using return_type = T;
 
-        template<size_t N>
-        static return_type call(DynAxis axis, const std::array<T, N>& storage) {
+        static return_type call(DynAxis<N>, const std::array<T, N>&) {
+            throw std::runtime_error("invalid axis");
+        }
+    };
+
+    template<typename T, T StaticValue, size_t N>
+    struct Getter<T, 0, DynAxis<N>, ConstInt<T, StaticValue>> {
+        using return_type = ConstInt<T, StaticValue>;
+
+        static return_type call(DynAxis<N>, const std::array<T, N>&) {
+            static_assert(N != 1, "internal error");
+            return {};
+        }
+    };
+
+    template<typename T, typename... Values, size_t N>
+    struct Getter<T, 0, DynAxis<N>, Values...> {
+        using return_type = T;
+
+        static return_type
+        call(DynAxis<N> axis, const std::array<T, N>& storage) {
             static_assert(N > 0, "internal error");
             return storage[axis];
         }
@@ -156,6 +158,27 @@ namespace dimension_helpers {
         }
     };
 
+    template<typename T, size_t I, typename... Items>
+    struct Init;
+
+    template<typename T, size_t I, typename... Rest>
+    struct Init<T, I, T, Rest...> {
+        template<size_t N>
+        static void call(std::array<T, N>& storage) {
+            static_assert(I < N, "internal error");
+            storage[I] = T {};
+        }
+    };
+
+    template<typename T, size_t I, T StaticValue, typename... Rest>
+    struct Init<T, I, ConstInt<T, StaticValue>, Rest...> {
+        template<size_t N>
+        static void call(std::array<T, N>& storage) {
+            static_assert(I < N, "internal error");
+            storage[I] = StaticValue;
+        }
+    };
+
     template<size_t N, typename... Ts>
     struct Repeat {
         using type = typename Repeat<N - 1, DynSize, Ts...>::type;
@@ -241,9 +264,12 @@ struct Dimensions {
 
     Dimensions(const Dimensions&) = default;
     Dimensions(Dimensions&&) noexcept = default;
+    Dimensions(Dimensions& that) {
+        *this = that;
+    }
 
     Dimensions() {
-        //todo
+        dimension_helpers::Init<value_type, 0, Ts...>::call(storage_);
     }
 
     Dimensions(const value_type* begin, const value_type* end) {
@@ -319,7 +345,7 @@ struct Dimensions {
 
     template<typename Axis>
     auto operator[](Axis axis) const {
-        auto axis_ = into_axis(axis);
+        auto axis_ = into_axis<rank>(axis);
         return dimension_helpers::
             Getter<value_type, 0, decltype(axis_), Ts...>::call(
                 axis_,

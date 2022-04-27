@@ -5,8 +5,13 @@
 namespace capibara {
 
 template<typename F, typename L, typename R>
+struct BinaryCursor;
+
+template<typename F, typename L, typename R>
 struct ExprTraits<BinaryExpr<F, L, R>> {
     static constexpr size_t rank = ExprTraits<L>::rank;
+    using cursor_type = BinaryCursor<F, L, R>;
+    using nested_type = BinaryExpr<F, L, R>;
     using value_type = typename std::result_of<
         F(expr_value_type<L>, expr_value_type<R>)>::type;
     using index_type = typename std::common_type<
@@ -16,21 +21,19 @@ struct ExprTraits<BinaryExpr<F, L, R>> {
 
 template<typename F, typename L, typename R>
 struct BinaryExpr: Expr<BinaryExpr<F, L, R>> {
+    friend BinaryCursor<F, L, R>;
+
     using base_type = Expr<BinaryExpr<F, L, R>>;
     using base_type::rank;
-    using typename base_type::index_type;
-    using typename base_type::ndindex_type;
+    using typename base_type::cursor_type;
     using typename base_type::value_type;
+    using left_type = typename L::nested_type;
+    using right_type = typename R::nested_type;
 
-    BinaryExpr(F op, const L& lhs, const R& rhs) :
+    BinaryExpr(F op, left_type lhs, right_type rhs) :
         op_(std::move(op)),
-        lhs_(lhs),
-        rhs_(rhs) {}
-
-    CAPIBARA_INLINE
-    value_type eval(ndindex_type idx) const {
-        return op_(lhs_.eval(idx), rhs_.eval(idx));
-    }
+        lhs_(std::move(lhs)),
+        rhs_(std::move(rhs)) {}
 
     template<typename Axis>
     CAPIBARA_INLINE auto dim(Axis i) const {
@@ -39,13 +42,39 @@ struct BinaryExpr: Expr<BinaryExpr<F, L, R>> {
 
   private:
     F op_;
-    const L& lhs_;
-    const R& rhs_;
+    left_type lhs_;
+    right_type rhs_;
+};
+
+template<typename F, typename L, typename R>
+struct BinaryCursor {
+    using expr_type = BinaryExpr<F, L, R>;
+    using value_type = typename expr_type::value_type;
+
+    BinaryCursor(const expr_type& e) :
+        op_(e.op_),
+        lhs_(e.lhs_.cursor()),
+        rhs_(e.rhs_.cursor()) {}
+
+    template<typename Axis, typename Diff>
+    void advance(Axis axis, Diff diff) {
+        lhs_.advance(axis, diff);
+        rhs_.advance(axis, diff);
+    }
+
+    value_type eval() const {
+        return op_(lhs_.eval(), rhs_.eval());
+    }
+
+  private:
+    F op_;
+    typename L::cursor_type lhs_;
+    typename R::cursor_type rhs_;
 };
 
 template<typename F, typename L, typename R>
 BinaryExpr<F, L, R> zip(const Expr<L>& lhs, const Expr<R>& rhs, F op) {
-    return BinaryExpr<F, L, R> {op, lhs, rhs};
+    return BinaryExpr<F, L, R> {op, lhs.self(), rhs.self()};
 }
 
 template<typename F, typename L, typename R>
@@ -106,42 +135,42 @@ namespace binary_functors {
     template<typename L, typename R>
     struct cmp_lt {
         bool operator()(L left, R right) const {
-            return (bool)(left < right);
+            return cmp_less(left, right);
         }
     };
 
     template<typename L, typename R>
     struct cmp_gt {
         bool operator()(L left, R right) const {
-            return (bool)(left > right);
+            return cmp_greater(left, right);
         }
     };
 
     template<typename L, typename R>
     struct cmp_le {
         bool operator()(L left, R right) const {
-            return (bool)(left <= right);
+            return cmp_less_equal(left, right);
         }
     };
 
     template<typename L, typename R>
     struct cmp_ge {
         bool operator()(L left, R right) const {
-            return (bool)(left >= right);
+            return cmp_greater_equal(left, right);
         }
     };
 
     template<typename L, typename R>
     struct cmp_eq {
         bool operator()(L left, R right) const {
-            return (bool)(left == right);
+            return cmp_equal(left, right);
         }
     };
 
     template<typename L, typename R>
     struct cmp_ne {
         bool operator()(L left, R right) const {
-            return (bool)(left != right);
+            return cmp_not_equal(left, right);
         }
     };
 }  // namespace binary_functors

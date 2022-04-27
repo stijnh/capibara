@@ -3,28 +3,31 @@
 
 namespace capibara {
 
-template<typename F, typename Op>
-struct ExprTraits<UnaryExpr<F, Op>>: ExprTraits<Op> {
+template<typename F, typename E>
+struct UnaryCursor;
+
+template<typename F, typename E>
+struct ExprTraits<UnaryExpr<F, E>> {
+    static constexpr size_t rank = ExprTraits<E>::rank;
     using value_type =
-        typename std::result_of<F(typename ExprTraits<Op>::value_type)>::type;
+        typename std::result_of<F(typename ExprTraits<E>::value_type)>::type;
+    using index_type = typename ExprTraits<E>::index_type;
+    using cursor_type = UnaryCursor<F, E>;
+    using nested_type = UnaryExpr<F, E>;
 };
 
-template<typename F, typename Op>
-struct UnaryExpr: Expr<UnaryExpr<F, Op>> {
-    using base_type = Expr<UnaryExpr<F, Op>>;
+template<typename F, typename E>
+struct UnaryExpr: Expr<UnaryExpr<F, E>> {
+    friend UnaryCursor<F, E>;
+
+    using base_type = Expr<UnaryExpr<F, E>>;
     using base_type::rank;
-    using typename base_type::index_type;
-    using typename base_type::ndindex_type;
+    using typename base_type::cursor_type;
     using typename base_type::value_type;
 
-    UnaryExpr(F op, const Op& inner) : op_(std::move(op)), inner_(inner) {}
+    UnaryExpr(F op, const E& inner) : op_(std::move(op)), inner_(inner) {}
 
-    UnaryExpr(const Op& inner) : op_({}), inner_(inner) {}
-
-    CAPIBARA_INLINE
-    value_type eval(ndindex_type idx) const {
-        return op_(inner_.eval(idx));
-    }
+    UnaryExpr(const E& inner) : op_({}), inner_(inner) {}
 
     template<typename Axis>
     CAPIBARA_INLINE auto dim(Axis i) const {
@@ -33,7 +36,28 @@ struct UnaryExpr: Expr<UnaryExpr<F, Op>> {
 
   private:
     F op_;
-    const Op& inner_;
+    typename E::nested_type inner_;
+};
+
+template<typename F, typename E>
+struct UnaryCursor {
+    using expr_type = UnaryExpr<F, E>;
+    using value_type = typename expr_type::value_type;
+
+    UnaryCursor(const expr_type& e) : op_(e.op_), inner_(e.inner_.cursor()) {}
+
+    template<typename Axis, typename Diff>
+    void advance(Axis axis, Diff diff) {
+        inner_.advance(axis, diff);
+    }
+
+    value_type eval() const {
+        return op_(inner_.eval());
+    }
+
+  private:
+    F op_;
+    typename E::cursor_type inner_;
 };
 
 template<typename F, typename E>
@@ -41,19 +65,21 @@ CAPIBARA_INLINE UnaryExpr<F, E> map(const Expr<E>& expr, F fun) {
     return UnaryExpr<F, E>(fun, expr.self());
 }
 
-#define DEFINE_SIMPLE_UNARY(type_name, fun_name)                            \
-    namespace unary_functors {                                              \
-        template<typename T>                                                \
-        struct type_name {                                                  \
-            CAPIBARA_INLINE                                                 \
-            auto operator()(T value) const {                                \
-                return fun_name(value);                                     \
-            }                                                               \
-        };                                                                  \
-    }                                                                       \
-    template<typename E, typename = decltype(fun_name(E::value_type))>      \
-    CAPIBARA_INLINE auto type_name(const ::capibara::Expr<E>& e) {          \
-        return e.map(unary_functors::type_name<typename E::value_type> {}); \
+#define DEFINE_SIMPLE_UNARY(type_name, fun_name)                               \
+    namespace unary_functors {                                                 \
+        template<typename T>                                                   \
+        struct type_name {                                                     \
+            CAPIBARA_INLINE                                                    \
+            auto operator()(T value) const {                                   \
+                return fun_name(value);                                        \
+            }                                                                  \
+        };                                                                     \
+    }                                                                          \
+    template<                                                                  \
+        typename E,                                                            \
+        typename = decltype(fun_name(std::declval<typename E::value_type>()))> \
+    CAPIBARA_INLINE auto type_name(const ::capibara::Expr<E>& e) {             \
+        return e.map(unary_functors::type_name<typename E::value_type> {});    \
     }
 
 DEFINE_SIMPLE_UNARY(isnan, std::isnan)

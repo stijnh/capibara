@@ -3,25 +3,24 @@
 #include "types.h"
 
 namespace capibara {
-template<typename F, typename Dims>
-struct ExprTraits<NullaryExpr<F, Dims>>:
-    ExprTraits<Array<
-        typename std::result_of<F(std::array<size_t, Dims::size()>)>::type,
-        Dims::size()>> {};
 
-template<typename F, typename Dims>
-struct NullaryExpr: Expr<NullaryExpr<F, Dims>> {
-    using base_type = Expr<NullaryExpr<F, Dims>>;
-    using base_type::rank;
-    using typename base_type::index_type;
-    using typename base_type::ndindex_type;
-    using typename base_type::value_type;
+template<typename F, typename D, typename = void>
+struct NullaryCursor;
 
-    NullaryExpr(F fun, Dims dims) : fun_(fun), dims_(dims) {}
+template<typename F, typename D>
+struct ExprTraits<NullaryExpr<F, D>> {
+    static constexpr size_t rank = D::rank;
+    using value_type = typename std::result_of<F()>::type;
+    using index_type = size_t;  // TODO: Is this correct?
+    using cursor_type = NullaryCursor<F, D>;
+    using nested_type = NullaryExpr<F, D>;
+};
 
-    value_type eval(ndindex_type index) const {
-        return fun_(index);
-    }
+template<typename F, typename D>
+struct NullaryExpr: Expr<NullaryExpr<F, D>> {
+    using base_type = Expr<NullaryExpr<F, D>>;
+
+    NullaryExpr(F fun, D dims) : fun_(fun), dims_(dims) {}
 
     template<typename Axis>
     auto dim(Axis axis) const {
@@ -30,7 +29,25 @@ struct NullaryExpr: Expr<NullaryExpr<F, Dims>> {
 
   private:
     F fun_;
-    Dims dims_;
+    D dims_;
+};
+
+template<typename F, typename D, typename>
+struct NullaryCursor {
+    using expr_traits = ExprTraits<NullaryExpr<F, D>>;
+    using value_type = typename expr_traits::value_type;
+
+    NullaryCursor(F op) : op_(std::move(op)) {}
+
+    template<typename Axis, typename Diff>
+    void advance(Axis axis, Diff diff) {}
+
+    value_type eval() {
+        return op_();
+    }
+
+  private:
+    F op_;
 };
 
 #define IMPL_SENTINEL_METHOD(type_name, value)       \
@@ -74,34 +91,21 @@ struct BinarySentinel {
     bool value_;
 };
 
-struct EmptySentinel {};
+struct EmptySentinel {
+    IMPL_SENTINEL_METHODS({})
+};
 
 namespace nullary_functors {
     template<typename T>
     struct Value {
         Value(T value) : value_(std::move(value)) {}
 
-        template<typename index_type, size_t Rank>
-        T operator()(std::array<index_type, Rank>) {
+        T operator()() const {
             return value_;
         }
 
       private:
         T value_;
-    };
-
-    template<typename T>
-    struct Eye {
-        template<typename index_type, size_t Rank>
-        T operator()(std::array<index_type, Rank> index) {
-            bool is_diagonal = true;
-            for (size_t i = 1; i < Rank; i++) {
-                if (index[i] != index[0])
-                    is_diagonal = false;
-            }
-
-            return T {is_diagonal};
-        }
     };
 
 }  // namespace nullary_functors
@@ -132,11 +136,6 @@ auto empty(Dims... dims) {
     return fill(EmptySentinel {}, dims...);
 }
 
-template<typename T = BinarySentinel, typename... Dims>
-auto eye(Dims... dims) {
-    return make_nullary_expr(nullary_functors::Eye<T> {}, dims...);
-}
-
 template<typename T, typename E>
 auto fill_like(T value, const Expr<E>& expr) {
     return make_nullary_expr(nullary_functors::Value<T> {value}, expr.dims());
@@ -155,11 +154,6 @@ auto ones_like(const Expr<E>& expr) {
 template<typename E>
 auto empty_like(const Expr<E>& expr) {
     return fill_like(EmptySentinel {}, expr);
-}
-
-template<typename T = BinarySentinel, typename E>
-auto eye_like(const Expr<E>& expr) {
-    return make_nullary_expr(nullary_functors::Eye<T> {}, expr.dims());
 }
 
 }  // namespace capibara
