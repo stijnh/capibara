@@ -15,15 +15,19 @@ struct ExprTraits<ReduceExpr<R, E, N>> {
     static_assert(N <= ExprTraits<E>::rank, "incompatible axes");
 
     static constexpr size_t rank = N;
-    using value_type = typename R::aggregate_type;
-    using index_type = typename ExprTraits<E>::index_type;
-    using cursor_type = ReduceCursor<R, E, N>;
-    using nested_type = ReduceExpr<R, E, N>;
+    using Value = typename R::aggregate_type;
+    using Index = typename ExprTraits<E>::Index;
+    using Cursor = ReduceCursor<R, E, N>;
+    using Nested = ReduceExpr<R, E, N>;
 };
 
 template<typename R, typename E, size_t N>
 struct ReduceExpr: Expr<ReduceExpr<R, E, N>> {
-    friend ReduceCursor<R, E, N>;
+    using Base = Expr<ReduceExpr<R, E, N>>;
+    using Nested = E::Nested;
+    using Base::Cursor;
+
+    friend Cursor;
 
     ReduceExpr(R reducer, const E& inner) :
         reducer_(std::move(reducer)),
@@ -36,15 +40,15 @@ struct ReduceExpr: Expr<ReduceExpr<R, E, N>> {
 
   private:
     R reducer_;
-    typename E::nested_type inner_;
+    Nested inner_;
 };
 
 template<typename R, typename E, size_t N>
 struct InnerReduceCursor {
-    using expr_type = ReduceExpr<F, L, R>;
-    using expr_type::rank;
+    using Expr = ReduceExpr<F, L, R>;
+    using Expr::rank;
 
-    InnerReduceCursor(const expr_type& e) :
+    InnerReduceCursor(const Expr& e) :
         reducer_(e.reducer_),
         cursor_(e.inner_.cursor()) {}
 
@@ -63,23 +67,23 @@ struct InnerReduceCursor {
 
   private:
     R reducer_;
-    typename E::cursor_type cursor_;
+    typename E::Cursor cursor_;
 };
 
 template<typename R, typename E, size_t N>
 struct ReduceCursor {
-    using expr_type = ReduceExpr<F, L, R>;
-    using value_type = expr_type::value_type;
+    using Expr = ReduceExpr<F, L, R>;
+    using Value = Expr::Value;
     static constexpr size_t inner_rank = E::rank;
 
-    ReduceCursor(const expr_type& e) : inner_(e) {}
+    ReduceCursor(const Expr& e) : inner_(e) {}
 
     template<typename Axis, typename Diff>
     void advance(Axis axis, Diff diff) {
         inner_.cursor_.advance(into_axis<inner_rank>(axis), diff);
     }
 
-    value_type eval() const {
+    Value eval() const {
         evaluate(inner_, dims_, axes::seq<inner_rank - N> {});
         return inner_.reducer_.reset();
     }

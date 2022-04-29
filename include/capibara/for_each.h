@@ -6,10 +6,10 @@ namespace capibara {
 
 template<typename E, typename F>
 struct EachCursor {
-    using expr_type = E;
-    using cursor_type = typename expr_type::cursor_type;
+    using Expr = E;
+    using Cursor = typename Expr::Cursor;
 
-    EachCursor(const expr_type& e, F fun) :
+    EachCursor(const Expr& e, F fun) :
         functor_(std::move(fun)),
         cursor_(e.cursor()) {}
 
@@ -26,7 +26,7 @@ struct EachCursor {
 
   private:
     F functor_;
-    cursor_type cursor_;
+    Cursor cursor_;
 };
 
 template<typename E, typename F>

@@ -10,15 +10,15 @@ struct NullaryCursor;
 template<typename F, typename D>
 struct ExprTraits<NullaryExpr<F, D>> {
     static constexpr size_t rank = D::rank;
-    using value_type = typename std::result_of<F()>::type;
-    using index_type = size_t;  // TODO: Is this correct?
-    using cursor_type = NullaryCursor<F, D>;
-    using nested_type = NullaryExpr<F, D>;
+    using Value = typename std::result_of<F()>::type;
+    using Index = size_t;  // TODO: Is this correct?
+    using Cursor = NullaryCursor<F, D>;
+    using Nested = NullaryExpr<F, D>;
 };
 
 template<typename F, typename D>
 struct NullaryExpr: Expr<NullaryExpr<F, D>> {
-    using base_type = Expr<NullaryExpr<F, D>>;
+    using Base = Expr<NullaryExpr<F, D>>;
 
     NullaryExpr(F fun, D dims) : fun_(fun), dims_(dims) {}
 
@@ -34,15 +34,15 @@ struct NullaryExpr: Expr<NullaryExpr<F, D>> {
 
 template<typename F, typename D, typename>
 struct NullaryCursor {
-    using expr_traits = ExprTraits<NullaryExpr<F, D>>;
-    using value_type = typename expr_traits::value_type;
+    using Traits = ExprTraits<NullaryExpr<F, D>>;
+    using Value = typename Traits::Value;
 
     NullaryCursor(F op) : op_(std::move(op)) {}
 
     template<typename Axis, typename Diff>
     void advance(Axis axis, Diff diff) {}
 
-    value_type eval() {
+    Value eval() {
         return op_();
     }
 

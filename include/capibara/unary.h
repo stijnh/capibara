@@ -9,21 +9,20 @@ struct UnaryCursor;
 template<typename F, typename E>
 struct ExprTraits<UnaryExpr<F, E>> {
     static constexpr size_t rank = ExprTraits<E>::rank;
-    using value_type =
-        typename std::result_of<F(typename ExprTraits<E>::value_type)>::type;
-    using index_type = typename ExprTraits<E>::index_type;
-    using cursor_type = UnaryCursor<F, E>;
-    using nested_type = UnaryExpr<F, E>;
+    using Value =
+        typename std::result_of<F(typename ExprTraits<E>::Value)>::type;
+    using Index = typename ExprTraits<E>::Index;
+    using Cursor = UnaryCursor<F, E>;
+    using Nested = UnaryExpr<F, E>;
 };
 
 template<typename F, typename E>
 struct UnaryExpr: Expr<UnaryExpr<F, E>> {
     friend UnaryCursor<F, E>;
 
-    using base_type = Expr<UnaryExpr<F, E>>;
-    using base_type::rank;
-    using typename base_type::cursor_type;
-    using typename base_type::value_type;
+    using Base = Expr<UnaryExpr<F, E>>;
+    using Base::rank;
+    using typename Base::Nested;
 
     UnaryExpr(F op, const E& inner) : op_(std::move(op)), inner_(inner) {}
 
@@ -36,28 +35,28 @@ struct UnaryExpr: Expr<UnaryExpr<F, E>> {
 
   private:
     F op_;
-    typename E::nested_type inner_;
+    Nested inner_;
 };
 
 template<typename F, typename E>
 struct UnaryCursor {
-    using expr_type = UnaryExpr<F, E>;
-    using value_type = typename expr_type::value_type;
+    using Expr = UnaryExpr<F, E>;
+    using Value = typename Expr::Value;
 
-    UnaryCursor(const expr_type& e) : op_(e.op_), inner_(e.inner_.cursor()) {}
+    UnaryCursor(const Expr& e) : op_(e.op_), inner_(e.inner_.cursor()) {}
 
     template<typename Axis, typename Diff>
     void advance(Axis axis, Diff diff) {
         inner_.advance(axis, diff);
     }
 
-    value_type eval() const {
+    Value eval() const {
         return op_(inner_.eval());
     }
 
   private:
     F op_;
-    typename E::cursor_type inner_;
+    typename E::Cursor inner_;
 };
 
 template<typename F, typename E>
@@ -77,9 +76,9 @@ CAPIBARA_INLINE UnaryExpr<F, E> map(const Expr<E>& expr, F fun) {
     }                                                                          \
     template<                                                                  \
         typename E,                                                            \
-        typename = decltype(fun_name(std::declval<typename E::value_type>()))> \
+        typename = decltype(fun_name(std::declval<typename E::Value>()))> \
     CAPIBARA_INLINE auto type_name(const ::capibara::Expr<E>& e) {             \
-        return e.map(unary_functors::type_name<typename E::value_type> {});    \
+        return e.map(unary_functors::type_name<typename E::Value> {});    \
     }
 
 DEFINE_SIMPLE_UNARY(isnan, std::isnan)
@@ -130,7 +129,7 @@ namespace unary_functors {
 
 template<typename R, typename E>
 CAPIBARA_INLINE auto cast(const Expr<E>& e) {
-    return e.map(unary_functors::cast<expr_value_type<E>, R> {});
+    return e.map(unary_functors::cast<ExprValue<E>, R> {});
 }
 
 namespace unary_functors {
@@ -155,7 +154,7 @@ namespace unary_functors {
 
 }  // namespace unary_functors
 
-template<typename E, typename T = expr_value_type<E>>
+template<typename E, typename T = ExprValue<E>>
 CAPIBARA_INLINE auto clamp(const Expr<E>& e, T lo, T hi) {
     return e.map(unary_functors::clamp<T> {});
 }
@@ -186,12 +185,12 @@ namespace unary_functors {
 
 template<typename E, typename T>
 CAPIBARA_INLINE auto pow(const Expr<E>& e, T expo) {
-    return e.map(unary_functors::pow<expr_value_type<E>, T> {expo});
+    return e.map(unary_functors::pow<ExprValue<E>, T> {expo});
 }
 
 template<typename E, typename T>
 CAPIBARA_INLINE auto pow2(const Expr<E>& e) {
-    return e.map(unary_functors::pow2<expr_value_type<E>> {});
+    return e.map(unary_functors::pow2<ExprValue<E>> {});
 }
 
 }  // namespace capibara

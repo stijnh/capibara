@@ -9,10 +9,10 @@ struct IndexedCursor;
 template<typename D, typename I>
 struct ExprTraits<IndexedExpr<D, I>> {
     static constexpr size_t rank = D::size();
-    using value_type = std::array<size_t, rank>;
-    using index_type = size_t;
-    using cursor_type = IndexedCursor<rank, I>;
-    using nested_type = IndexedExpr<D, I>;
+    using Value = std::array<size_t, rank>;
+    using Index = size_t;
+    using Cursor = IndexedCursor<rank, I>;
+    using Nested = IndexedExpr<D, I>;
 };
 
 template<typename D, typename I>
@@ -32,8 +32,8 @@ struct IndexedExpr: Expr<IndexedExpr<D, I>> {
 
 template<size_t N, typename I>
 struct IndexedCursor {
-    using index_type = I;
-    using value_type = std::array<index_type, N>;
+    using Index = I;
+    using Value = std::array<Index, N>;
 
     template<typename E>
     IndexedCursor(const E& e) {
@@ -48,12 +48,12 @@ struct IndexedCursor {
     }
 
     CAPIBARA_INLINE
-    value_type eval() const {
+    Value eval() const {
         return index_;
     }
 
   private:
-    value_type index_;
+    Value index_;
 };
 
 template<typename... D>

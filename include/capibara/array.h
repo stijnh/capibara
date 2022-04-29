@@ -15,26 +15,26 @@ struct ArrayCursor;
 template<typename T, typename D>
 struct ExprTraits<ArrayBase<T, D>> {
     static constexpr size_t rank = D::rank;
-    using value_type = T;
-    using index_type = size_t;
-    using cursor_type = ArrayCursor<T, D>;
-    using nested_type = const ArrayBase<T, D>&;
+    using Value = T;
+    using Index = size_t;
+    using Cursor = ArrayCursor<T, D>;
+    using Nested = const ArrayBase<T, D>&;
 };
 
 template<typename T, typename D>
 struct ArrayBase: View<ArrayBase<T, D>> {
     friend ArrayCursor<T, D>;
 
-    using base_type = View<ArrayBase<T, D>>;
-    using base_type::rank;
-    using typename base_type::cursor_type;
-    using typename base_type::index_type;
-    using typename base_type::ndindex_type;
-    using typename base_type::value_type;
+    using Base = View<ArrayBase<T, D>>;
+    using Base::rank;
+    using typename Base::Cursor;
+    using typename Base::Index;
+    using typename Base::NdIndex;
+    using typename Base::Value;
     using stride_type = ptrdiff_t;
     using dims_type = D;
 
-    using base_type::operator=;
+    using Base::operator=;
 
     ArrayBase(dims_type dims) : dims_(std::move(dims)) {
         std::cout << this->size() << std::endl;
@@ -43,7 +43,7 @@ struct ArrayBase: View<ArrayBase<T, D>> {
 
     ArrayBase() : ArrayBase(dims_type {}) {}
 
-    size_t linearize_index(ndindex_type idx) const {
+    size_t linearize_index(NdIndex idx) const {
         size_t offset = 0;
 
         for (size_t i = 0; i < rank; i++) {
@@ -53,11 +53,11 @@ struct ArrayBase: View<ArrayBase<T, D>> {
         return offset;
     }
 
-    value_type& access(ndindex_type idx) {
+    Value& access(NdIndex idx) {
         return base_[linearize_index(idx)];
     }
 
-    const value_type& access(ndindex_type idx) const {
+    const Value& access(NdIndex idx) const {
         return base_[linearize_index(idx)];
     }
 
@@ -178,7 +178,7 @@ namespace array_helpers {
 
 template<typename T, typename D>
 struct ArrayCursor {
-    using value_type = T;
+    using Value = T;
     static constexpr size_t rank = D::rank;
 
     ArrayCursor(const ArrayBase<T, D>& inner) :
@@ -195,12 +195,12 @@ struct ArrayCursor {
         cursor_ += stride(axis) * steps;
     }
 
-    value_type eval() const {
+    Value eval() const {
         return *cursor_;
     }
 
   private:
-    value_type* cursor_;
+    Value* cursor_;
     const ArrayBase<T, D>& inner_;
 };
 

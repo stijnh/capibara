@@ -16,20 +16,20 @@ struct ExprExtra {
 
 template<typename Derived>
 struct ExprExtra<Derived, 0> {
-    using value_type = expr_value_type<Derived>;
+    using Value = ExprValue<Derived>;
 
     CAPIBARA_INLINE
-    value_type operator()() {
+    Value operator()() {
         return ((const Derived*)this)->eval({});
     }
 };
 
 template<typename Derived>
 struct ExprExtra<Derived, 1> {
-    using value_type = expr_value_type<Derived>;
+    using Value = ExprValue<Derived>;
 
     template<typename Index>
-    CAPIBARA_INLINE value_type operator[](Index index) {
+    CAPIBARA_INLINE Value operator[](Index index) {
         return ((const Derived*)this)->remove_axis(Axis0, index).eval({});
     }
 
@@ -41,7 +41,7 @@ struct ExprExtra<Derived, 1> {
 
 template<typename Derived>
 struct ExprExtra<Derived, 2> {
-    using value_type = expr_value_type<Derived>;
+    using Value = ExprValue<Derived>;
 
     CAPIBARA_INLINE
     auto row(size_t i) const {
@@ -72,32 +72,33 @@ struct ExprExtra<Derived, 2> {
 template<typename Derived>
 struct Expr<Derived, AccessMode::ReadOnly>:
     ExprExtra<Derived, ExprTraits<Derived>::rank> {
-    using self_type = Derived;
-    using expr_traits = ExprTraits<self_type>;
+    using Self = Derived;
+    using Traits = ExprTraits<Self>;
     static constexpr AccessMode access_mode = AccessMode::ReadOnly;
-    static constexpr size_t rank = expr_traits::rank;
-    using value_type = typename expr_traits::value_type;
-    using index_type = typename expr_traits::index_type;
-    using cursor_type = typename expr_traits::cursor_type;
-    using nested_type = typename expr_traits::nested_type;
-    using ndindex_type = std::array<index_type, rank>;
+    static constexpr size_t rank = Traits::rank;
+
+    using Value = typename Traits::Value;
+    using Index = typename Traits::Index;
+    using Cursor = typename Traits::Cursor;
+    using Nested = typename Traits::Nested;
+    using NdIndex = std::array<Index, rank>;
 
     CAPIBARA_INLINE
-    const self_type& self() const {
-        return *static_cast<const self_type*>(this);
+    const Self& self() const {
+        return *static_cast<const Self*>(this);
     }
 
     CAPIBARA_INLINE
-    self_type& self() {
-        return *static_cast<self_type*>(this);
+    Self& self() {
+        return *static_cast<Self*>(this);
     }
 
-    CAPIBARA_INLINE cursor_type cursor() const {
-        return cursor_type(self());
+    CAPIBARA_INLINE Cursor cursor() const {
+        return Cursor(self());
     }
 
-    ndindex_type shape() const {
-        ndindex_type result;
+    NdIndex shape() const {
+        NdIndex result;
         for (size_t i = 0; i < rank; i++) {
             result[i] = self().dim(i);
         }
@@ -132,7 +133,7 @@ struct Expr<Derived, AccessMode::ReadOnly>:
 
     template<typename R>
     auto cast() const {
-        return map(unary_functors::cast<value_type, R> {});
+        return map(unary_functors::cast<Value, R> {});
     }
 
     template<typename Derived2, typename Op>
@@ -186,12 +187,12 @@ struct Expr<Derived, AccessMode::ReadOnly>:
         return make_slice_expr(
             self(),
             axis,
-            convert_integer<index_type>(index));
+            convert_integer<Index>(index));
     }
 
     template<typename Axis>
     auto remove_axis(Axis axis) const {
-        return make_slice_expr(self(), axis, convert_integer<index_type>(S0));
+        return make_slice_expr(self(), axis, convert_integer<Index>(S0));
     }
 
     template<typename Axis, typename Index>
@@ -199,7 +200,7 @@ struct Expr<Derived, AccessMode::ReadOnly>:
         return make_slice_expr(
             self(),
             axis,
-            newaxis(convert_integer<index_type>(size)));
+            newaxis(convert_integer<Index>(size)));
     }
 
     template<typename Axis>
@@ -217,34 +218,33 @@ template<typename Derived>
 struct Expr<Derived, AccessMode::ReadWrite>:
     Expr<Derived, AccessMode::ReadOnly> {
     static constexpr AccessMode access_mode = AccessMode::ReadWrite;
-    using base_type = Expr<Derived>;
-    using base_type::rank;
-    using base_type::self;
-    using typename base_type::index_type;
-    using typename base_type::ndindex_type;
-    using typename base_type::value_type;
+    using Base = Expr<Derived>;
+    using Base::rank;
+    using Base::self;
+    using typename Base::NdIndex;
+    using typename Base::Value;
 
-    const value_type& operator()(ndindex_type idx) const {
+    const Value& operator()(NdIndex idx) const {
         return self().access(idx);
     }
 
     template<typename... Is>
-    const value_type& operator()(Is... idxs) const {
-        ndindex_type idx = {idxs...};
+    const Value& operator()(Is... idxs) const {
+        NdIndex idx = {idxs...};
         return self().access(idx);
     }
 
-    value_type& operator()(ndindex_type idx) {
+    Value& operator()(NdIndex idx) {
         return this->self().access(idx);
     }
 
     template<typename... Is>
-    value_type& operator()(Is... idxs) {
-        ndindex_type idx = {idxs...};
+    Value& operator()(Is... idxs) {
+        NdIndex idx = {idxs...};
         return self().access(idx);
     }
 
-    void store(ndindex_type idx, value_type v) {
+    void store(NdIndex idx, Value v) {
         self().access(idx) = std::move(v);
     }
 

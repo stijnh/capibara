@@ -6,7 +6,7 @@ template<typename T>
 struct ExprTraits {};
 
 template<typename E>
-using expr_value_type = typename ExprTraits<E>::value_type;
+using ExprValue = typename ExprTraits<E>::Value;
 
 enum struct AccessMode {
     ReadWrite,

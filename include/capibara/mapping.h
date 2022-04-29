@@ -11,9 +11,9 @@ namespace mapping {
         static constexpr size_t old_rank = Rank;
         static constexpr size_t new_rank = Rank;
 
-        template<typename index_type>
-        std::array<index_type, old_rank>
-        map(std::array<index_type, new_rank> input) const {
+        template<typename Index>
+        std::array<Index, old_rank>
+        map(std::array<Index, new_rank> input) const {
             return input;
         }
 
@@ -38,10 +38,10 @@ namespace mapping {
             assert_rank<Rank + 1>(axis_);
         }
 
-        template<typename index_type>
-        std::array<index_type, old_rank>
-            CAPIBARA_INLINE map(std::array<index_type, new_rank> input) const {
-            std::array<index_type, old_rank> output;
+        template<typename Index>
+        std::array<Index, old_rank>
+            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
+            std::array<Index, old_rank> output;
 
             for (size_t i = 0; i < axis_(); i++) {
                 output[i] = input[i];
@@ -90,10 +90,9 @@ namespace mapping {
             assert_rank<Rank>(axis_);
         }
 
-        template<typename index_type>
-        std::array<index_type, old_rank>
-            CAPIBARA_INLINE map(std::array<index_type, new_rank> input) const {
-            std::array<index_type, old_rank> output;
+        std::array<Index, old_rank>
+            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
+            std::array<Index, old_rank> output;
 
             for (size_t i = 0; i < axis_(); i++) {
                 output[i] = input[i];
@@ -141,9 +140,9 @@ namespace mapping {
             assert_rank<Rank>(b);
         }
 
-        template<typename index_type>
-        std::array<index_type, old_rank>
-            CAPIBARA_INLINE map(std::array<index_type, new_rank> input) const {
+        template<typename Index>
+        std::array<Index, old_rank>
+            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
             std::swap(input[a_()], input[b_()]);
             return input;
         }
@@ -184,9 +183,9 @@ namespace mapping {
             assert_rank<Rank>(axis_);
         }
 
-        template<typename index_type>
-        std::array<index_type, old_rank>
-            CAPIBARA_INLINE map(std::array<index_type, new_rank> input) const {
+        template<typename Index>
+        std::array<Index, old_rank>
+            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
             input[axis_()] = length_() - input[axis_()] - 1;
             return input;
         }
@@ -215,10 +214,10 @@ namespace mapping {
         static constexpr size_t old_rank = Rank;
         static constexpr size_t new_rank = Rank;
 
-        template<typename index_type>
-        std::array<index_type, Rank>
-            CAPIBARA_INLINE map(std::array<index_type, new_rank> input) const {
-            std::array<index_type, old_rank> result;
+        template<typename Index>
+        std::array<Index, Rank>
+            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
+            std::array<Index, old_rank> result;
             for (size_t i = 0; i < old_rank / 2; i++) {
                 result[i] = input[old_rank - i - 1];
             }
@@ -263,9 +262,9 @@ namespace mapping {
             }
         }
 
-        template<typename index_type>
-        std::array<index_type, old_rank>
-            CAPIBARA_INLINE map(std::array<index_type, new_rank> index) const {
+        template<typename Index>
+        std::array<Index, old_rank>
+            CAPIBARA_INLINE map(std::array<Index, new_rank> index) const {
             index[axis_()] = start_() + index[axis_()] * stride_();
             return index;
         }
@@ -300,10 +299,10 @@ namespace mapping {
         static constexpr size_t old_rank = Rank;
         static constexpr size_t new_rank = Rank >= 1 ? 1 : 0;
 
-        template<typename index_type>
-        std::array<index_type, old_rank>
-            CAPIBARA_INLINE map(std::array<index_type, new_rank> input) const {
-            std::array<index_type, old_rank> result;
+        template<typename Index>
+        std::array<Index, old_rank>
+            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
+            std::array<Index, old_rank> result;
             for (size_t i = 0; i < old_rank; i++) {
                 result[i] = input[0];
             }
@@ -343,10 +342,10 @@ namespace mapping {
             assert_rank<old_rank>(axis);
         }
 
-        template<typename index_type>
-        std::array<index_type, old_rank>
-            CAPIBARA_INLINE map(std::array<index_type, new_rank> input) const {
-            std::array<index_type, old_rank> output;
+        template<typename Index>
+        std::array<Index, old_rank>
+            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
+            std::array<Index, old_rank> output;
 
             for (size_t i = 0; i < axis_; i++) {
                 output[i] = input[i];
@@ -400,9 +399,9 @@ namespace mapping {
 
         Combine(A a, B b) : a_(a), b_(b) {}
 
-        template<typename index_type>
-        std::array<index_type, old_rank>
-            CAPIBARA_INLINE map(std::array<index_type, new_rank> index) const {
+        template<typename Index>
+        std::array<Index, old_rank>
+            CAPIBARA_INLINE map(std::array<Index, new_rank> index) const {
             return a_.map(b_.map(index));
         }
 
@@ -515,23 +514,23 @@ struct ExprTraits<MappingExpr<F, Op>> {
     static_assert(F::old_rank == ExprTraits<Op>::rank, "internal error");
 
     static constexpr size_t rank = F::new_rank;
-    using value_type = typename ExprTraits<Op>::value_type;
-    using index_type = typename ExprTraits<Op>::index_type;
-    using cursor_type = MappingCursor<F, Op>;
-    using nested_type = MappingExpr<F, Op>;
+    using Value = typename ExprTraits<Op>::Value;
+    using Index = typename ExprTraits<Op>::Index;
+    using Cursor = MappingCursor<F, Op>;
+    using Nested = MappingExpr<F, Op>;
 };
 
 template<typename F, typename Op>
 struct MappingExpr: Expr<MappingExpr<F, Op>, Op::access_mode> {
-    using base_type = Expr<MappingExpr<F, Op>, Op::access_mode>;
-    using typename base_type::index_type;
-    using typename base_type::ndindex_type;
-    using typename base_type::value_type;
+    using Base = Expr<MappingExpr<F, Op>, Op::access_mode>;
+    using typename Base::Index;
+    using typename Base::NdIndex;
+    using typename Base::Value;
 
     MappingExpr(F mapper, const Op& inner) : mapper_(mapper), inner_(inner) {}
 
     CAPIBARA_INLINE
-    value_type eval(ndindex_type idx) const {
+    Value eval(NdIndex idx) const {
         return inner_.eval(mapper_.map(idx));
     }
 

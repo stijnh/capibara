@@ -260,7 +260,7 @@ namespace dimension_helpers {
 template<typename... Ts>
 struct Dimensions {
     static constexpr size_t rank = sizeof...(Ts);
-    using value_type = size_t;
+    using Value = size_t;
 
     Dimensions(const Dimensions&) = default;
     Dimensions(Dimensions&&) noexcept = default;
@@ -269,10 +269,10 @@ struct Dimensions {
     }
 
     Dimensions() {
-        dimension_helpers::Init<value_type, 0, Ts...>::call(storage_);
+        dimension_helpers::Init<Value, 0, Ts...>::call(storage_);
     }
 
-    Dimensions(const value_type* begin, const value_type* end) {
+    Dimensions(const Value* begin, const Value* end) {
         if (std::distance(begin, end) != rank) {
             throw std::runtime_error("invalid number of values given");
         }
@@ -290,10 +290,10 @@ struct Dimensions {
         *this = values;
     }
 
-    Dimensions(const std::initializer_list<value_type>& values) :
+    Dimensions(const std::initializer_list<Value>& values) :
         Dimensions(values.begin(), values.end()) {}
 
-    Dimensions(std::array<value_type, rank> values) {
+    Dimensions(std::array<Value, rank> values) {
         *this = values;
     }
 
@@ -305,7 +305,7 @@ struct Dimensions {
 
     template<typename F, typename Indices = std::index_sequence_for<Ts...>>
     void assign(F fun, Indices = {}) {
-        dimension_helpers::Assign<value_type, Indices, Ts...>::call(
+        dimension_helpers::Assign<Value, Indices, Ts...>::call(
             storage_,
             fun);
     }
@@ -338,7 +338,7 @@ struct Dimensions {
         return *this;
     }
 
-    Dimensions& operator=(const std::array<value_type, rank>& values) {
+    Dimensions& operator=(const std::array<Value, rank>& values) {
         assign([&values](auto axis) { return values[axis]; });
         return *this;
     }
@@ -347,7 +347,7 @@ struct Dimensions {
     auto operator[](Axis axis) const {
         auto axis_ = into_axis<rank>(axis);
         return dimension_helpers::
-            Getter<value_type, 0, decltype(axis_), Ts...>::call(
+            Getter<Value, 0, decltype(axis_), Ts...>::call(
                 axis_,
                 storage_);
     }
@@ -377,33 +377,33 @@ struct Dimensions {
         return !(*this == dims);
     }
 
-    std::array<value_type, rank> to_array() noexcept {
+    std::array<Value, rank> to_array() noexcept {
         return storage_;
     }
 
   private:
-    std::array<value_type, rank> storage_;
+    std::array<Value, rank> storage_;
 };
 
 template<>
 struct Dimensions<> {
     static constexpr size_t rank = 0;
-    using value_type = size_t;
+    using Value = size_t;
 
     Dimensions() {}
     Dimensions(const Dimensions&) = default;
     Dimensions(Dimensions&&) = default;
     Dimensions(const std::tuple<>&) {}
     Dimensions(std::tuple<>&&) {}
-    Dimensions(std::array<value_type, 0>) {}
+    Dimensions(std::array<Value, 0>) {}
 
-    Dimensions(const value_type* begin, const value_type* end) {
+    Dimensions(const Value* begin, const Value* end) {
         if (std::distance(begin, end) != 0) {
             throw std::runtime_error("invalid number of values given");
         }
     }
 
-    Dimensions(const std::initializer_list<value_type>& values) :
+    Dimensions(const std::initializer_list<Value>& values) :
         Dimensions(values.begin(), values.end()) {}
 
     Dimensions& operator=(const Dimensions&) = default;
@@ -413,7 +413,7 @@ struct Dimensions<> {
         return *this;
     }
 
-    Dimensions& operator=(const std::array<value_type, 0>&) {
+    Dimensions& operator=(const std::array<Value, 0>&) {
         return *this;
     }
 
@@ -436,7 +436,7 @@ struct Dimensions<> {
         return !(*this == dims);
     }
 
-    std::array<value_type, rank> to_array() noexcept {
+    std::array<Value, rank> to_array() noexcept {
         return {};
     }
 };
