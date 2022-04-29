@@ -34,4 +34,7 @@ struct MappingExpr;
 template<typename T, typename D>
 struct ArrayBase;
 
+template<typename D, typename I = size_t>
+struct IndexedExpr;
+
 }  // namespace capibara

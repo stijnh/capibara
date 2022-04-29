@@ -3,21 +3,21 @@
 
 namespace capibara {
 
-template<size_t N>
+template<size_t N, typename I>
 struct IndexedCursor;
 
-template<typename D>
-struct ExprTraits<IndexedExpr<D>> {
+template<typename D, typename I>
+struct ExprTraits<IndexedExpr<D, I>> {
     static constexpr size_t rank = D::size();
     using value_type = std::array<size_t, rank>;
     using index_type = size_t;
-    using cursor_type = IndexedCursor<rank>;
-    using nested_type = IndexedExpr<D>;
+    using cursor_type = IndexedCursor<rank, I>;
+    using nested_type = IndexedExpr<D, I>;
 };
 
-template<typename D>
-struct IndexedExpr: Expr<IndexedExpr<N>> {
-    friend IndexedCursor<N>;
+template<typename D, typename I>
+struct IndexedExpr: Expr<IndexedExpr<D, I>> {
+    friend IndexedCursor<D::rank, I>;
 
     IndexedExpr(D dims) : dims_(std::move(dims)) {}
 
@@ -30,11 +30,13 @@ struct IndexedExpr: Expr<IndexedExpr<N>> {
     D dims_;
 };
 
-template<typename N>
+template<size_t N, typename I>
 struct IndexedCursor {
-    using value_type = std::array<size_t, N>;
+    using index_type = I;
+    using value_type = std::array<index_type, N>;
 
-    IndexedCursor(const expr_type& e) {
+    template<typename E>
+    IndexedCursor(const E& e) {
         for (size_t i = 0; i < N; i++) {
             index_[i] = 0;
         }
@@ -42,7 +44,7 @@ struct IndexedCursor {
 
     template<typename Axis, typename Diff>
     CAPIBARA_INLINE void advance(Axis axis, Diff diff) {
-        index[axis] += diff;
+        index_[axis] += diff;
     }
 
     CAPIBARA_INLINE
@@ -53,5 +55,15 @@ struct IndexedCursor {
   private:
     value_type index_;
 };
+
+template<typename... D>
+IndexedExpr<dims_type<D...>> arange(D... dim) {
+    return IndexedExpr<dims_type<D...>>(dims(dim...));
+}
+
+template<typename E>
+auto indexed(const Expr<E>& expr) {
+    return zip(arange(expr.dims()), expr);
+}
 
 }  // namespace capibara

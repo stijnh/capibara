@@ -35,12 +35,37 @@ struct Axis: ConstInt<size_t, I> {
     constexpr size_t get() const {
         return I;
     }
+
+    template<size_t D>
+    CAPIBARA_INLINE constexpr Axis<I + D> increment() const {
+        return {};
+    }
+
+    template<size_t J>
+        CAPIBARA_INLINE constexpr Axis
+        < I<J ? I : I - 1> drop_axis(Axis<J>) const {
+        return {};
+    }
+
+    template<size_t J>
+    CAPIBARA_INLINE constexpr Axis<I <= J ? I : I + 1>
+    insert_axis(Axis<J>) const {
+        return {};
+    }
 };
 
 template<size_t Rank = MaxRank>
 struct DynAxis {
     static_assert(Rank > 0 && Rank <= MaxRank, "invalid rank given");
 
+  private:
+    struct Trusted {};
+
+    constexpr DynAxis(Trusted, size_t axis) : axis_(axis) {
+        // Trused is private
+    }
+
+  public:
     template<size_t I>
     constexpr DynAxis(Axis<I>) : axis_(I) {
         static_assert(I < Rank, "invalid axis");
@@ -85,6 +110,22 @@ struct DynAxis {
     CAPIBARA_INLINE
     constexpr size_t operator()() const {
         return get();
+    }
+
+    template<size_t D>
+    CAPIBARA_INLINE constexpr DynAxis<Rank + D> increment() const {
+        return {Trusted {}, get() + D};
+    }
+
+    template<size_t J>
+    CAPIBARA_INLINE constexpr DynAxis<Rank - 1> drop_axis(Axis<J>) const {
+        static_assert(Rank > 0, "internal error");
+        return {Trusted {}, axis_ < J ? axis_ : axis_ - 1};
+    }
+
+    template<size_t J>
+    CAPIBARA_INLINE constexpr DynAxis<Rank + 1> insert_axis(Axis<J>) const {
+        return {Trusted {}, axis_ <= J ? axis_ : axis_ + 1};
     }
 
   private:

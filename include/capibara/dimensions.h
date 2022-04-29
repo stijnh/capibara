@@ -448,11 +448,13 @@ template<size_t... Sizes>
 using DimensionsDyn =
     typename dimension_helpers::Sizes<std::index_sequence<Sizes...>>::type;
 
-template<typename... Ts>
-auto dims(Ts... values) {
-    using DimensionsType = typename dimension_helpers::Convert<
-        typename std::decay<Ts>::type...>::type;
-    return DimensionsType(values...);
+template<typename... Dim>
+using dims_type = typename dimension_helpers::Convert<
+    typename std::decay<Dim>::type...>::type;
+
+template<typename... Dim>
+dims_type<Dim...> dims(Dim... values) {
+    return dims_type<Dim...>(values...);
 }
 
 template<typename... Ts>

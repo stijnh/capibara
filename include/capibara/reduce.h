@@ -14,7 +14,7 @@ template<typename R, typename E, size_t N>
 struct ExprTraits<ReduceExpr<R, E, N>> {
     static_assert(N <= ExprTraits<E>::rank, "incompatible axes");
 
-    static constexpr size_t rank = ExprTraits<E>::rank - N;
+    static constexpr size_t rank = N;
     using value_type = typename R::aggregate_type;
     using index_type = typename ExprTraits<E>::index_type;
     using cursor_type = ReduceCursor<R, E, N>;
@@ -25,19 +25,13 @@ template<typename R, typename E, size_t N>
 struct ReduceExpr: Expr<ReduceExpr<R, E, N>> {
     friend ReduceCursor<R, E, N>;
 
-    using base_type = ReduceExpr<R, E, N>;
-    using base_type::rank;
-    using typename base_type::cursor_type;
-    using typename base_type::value_type;
-    using typename
-
-        ReduceExpr(R reducer, const E& inner) :
+    ReduceExpr(R reducer, const E& inner) :
         reducer_(std::move(reducer)),
         inner_(inner) {}
 
     template<typename Axis>
     CAPIBARA_INLINE auto dim(Axis i) const {
-        //return inner_.dim(i);
+        return inner_.dim(i);
     }
 
   private:
@@ -54,14 +48,9 @@ struct InnerReduceCursor {
         reducer_(e.reducer_),
         cursor_(e.inner_.cursor()) {}
 
-    template<size_t I, typename Diff>
-    void advance(Axis<I> axis, Diff diff) {
-        inner_.cursor_.advance(Axis<I + N>, diff);
-    }
-
     template<typename Axis, typename Diff>
-    void advance(DynAxis<rank - N> axis, Diff diff) {
-        inner_.cursor_.advance((DynAxis<rank>)(axis + N), diff);
+    void advance(Axis axis, Diff diff) {
+        inner_.cursor_.advance(axis.template increment<N>(), diff);
     }
 
     ControlFlow eval() const {
@@ -81,22 +70,17 @@ template<typename R, typename E, size_t N>
 struct ReduceCursor {
     using expr_type = ReduceExpr<F, L, R>;
     using value_type = expr_type::value_type;
-    using expr_type::rank;
+    static constexpr size_t inner_rank = E::rank;
 
     ReduceCursor(const expr_type& e) : inner_(e) {}
 
-    template<size_t I, typename Diff>
-    void advance(Axis<I> axis, Diff diff) {
-        inner_.cursor_.advance(axis, diff);
-    }
-
     template<typename Axis, typename Diff>
-    void advance(DynAxis<N> axis, Diff diff) {
-        inner_.cursor_.advance((DynAxis<rank>)axis, diff);
+    void advance(Axis axis, Diff diff) {
+        inner_.cursor_.advance(into_axis<inner_rank>(axis), diff);
     }
 
     value_type eval() const {
-        evaluate(inner_, dims_, axes::seq<N> {});
+        evaluate(inner_, dims_, axes::seq<inner_rank - N> {});
         return inner_.reducer_.reset();
     }
 
@@ -137,37 +121,21 @@ namespace reducers {
         bool state_ = true;
     };
 
-    template<
-        typename Cond,
-        typename Init,
-        typename T = typename std::result_of<Init()>::type>
-    struct Find {
-        using value_type = T;
-
-        Find(Cond cond, Init init) :
-            cond_(std::move(cond)),
-            init_(std::move(init)),
-            state_(init_()) {}
-
-        bool accumulate(value_type input) {
-            if (cond_(input)) {
-                state_ = std::move(input);
-                return true;
-            } else {
-                return false;
-            };
+    template<typename T, typename R = T>
+    struct Sum {
+        ConstFalse accumulate(T d) {
+            state_ += T;
+            return {};
         }
 
-        value_type reset() {
-            value_type old_state = init_();
+        R reset() {
+            R old_state = {};
             std::swap(old_state, state_);
             return old_state;
         }
 
       private:
-        Cond cond_;
-        Init init_;
-        value_type state_;
+        R state_ = {};
     };
 
 }  // namespace reducers

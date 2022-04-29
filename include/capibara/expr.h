@@ -1,5 +1,6 @@
 #pragma once
 
+#include "axes.h"
 #include "slice.h"
 #include "unary.h"
 
@@ -103,15 +104,6 @@ struct Expr<Derived, AccessMode::ReadOnly>:
         return result;
     }
 
-    bool empty() const {
-        for (size_t i = 0; i < rank; i++) {
-            if (self().dim(i) == 0)
-                return true;
-        }
-
-        return false;
-    }
-
     size_t size() const {
         size_t result = 1;
         for (size_t i = 0; i < rank; i++) {
@@ -120,12 +112,17 @@ struct Expr<Derived, AccessMode::ReadOnly>:
         return result;
     }
 
+    bool empty() const {
+        return size() == 0;
+    }
+
     auto dims() const {
-        std::array<index_type, rank> output {};
-        for (size_t i = 0; i < rank; i++) {
-            output[i] = self().dim(i);
-        }
-        return output;
+        return dims(axes::seq<rank> {});
+    }
+
+    template<size_t... I>
+    auto dims(AxesOrder<I...>) const {
+        return capibara::dims(self().dim(Axis<I> {})...);
     }
 
     template<typename F>
