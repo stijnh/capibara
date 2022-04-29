@@ -4,12 +4,12 @@
 #include "slice.h"
 #include "unary.h"
 
-namespace capibara {
+namespace capybara {
 
 template<typename Derived, size_t Rank>
 struct ExprExtra {
     template<typename Index>
-    CAPIBARA_INLINE auto operator[](Index index) {
+    CAPYBARA_INLINE auto operator[](Index index) {
         return ((const Derived*)this)->remove_axis(index);
     }
 };
@@ -18,7 +18,7 @@ template<typename Derived>
 struct ExprExtra<Derived, 0> {
     using Value = ExprValue<Derived>;
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     Value operator()() {
         return ((const Derived*)this)->eval({});
     }
@@ -29,11 +29,11 @@ struct ExprExtra<Derived, 1> {
     using Value = ExprValue<Derived>;
 
     template<typename Index>
-    CAPIBARA_INLINE Value operator[](Index index) {
+    CAPYBARA_INLINE Value operator[](Index index) {
         return ((const Derived*)this)->remove_axis(Axis0, index).eval({});
     }
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     auto reverse() {
         return ((const Derived*)this)->reverse_axis(Axis0);
     }
@@ -43,28 +43,28 @@ template<typename Derived>
 struct ExprExtra<Derived, 2> {
     using Value = ExprValue<Derived>;
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     auto row(size_t i) const {
         return ((const Derived*)this)->slice_axis(Axis0, i);
     }
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     auto col(size_t i) const {
         return ((const Derived*)this)->slice_axis(Axis1, i);
     }
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     size_t nrows(size_t i) const {
         return ((const Derived*)this)->dim(Axis0);
     }
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     size_t ncols(size_t i) const {
         return ((const Derived*)this)->dim(Axis1);
     }
 
     template<typename Index>
-    CAPIBARA_INLINE auto operator[](Index index) {
+    CAPYBARA_INLINE auto operator[](Index index) {
         return ((const Derived*)this)->remove_axis(Axis0, index);
     }
 };
@@ -83,17 +83,17 @@ struct Expr<Derived, AccessMode::ReadOnly>:
     using Nested = typename Traits::Nested;
     using NdIndex = std::array<Index, rank>;
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     const Self& self() const {
         return *static_cast<const Self*>(this);
     }
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     Self& self() {
         return *static_cast<Self*>(this);
     }
 
-    CAPIBARA_INLINE Cursor cursor() const {
+    CAPYBARA_INLINE Cursor cursor() const {
         return Cursor(self());
     }
 
@@ -123,11 +123,11 @@ struct Expr<Derived, AccessMode::ReadOnly>:
 
     template<size_t... I>
     auto dims(AxesOrder<I...>) const {
-        return capibara::dims(self().dim(Axis<I> {})...);
+        return capybara::dims(self().dim(Axis<I> {})...);
     }
 
     template<typename F>
-    CAPIBARA_INLINE UnaryExpr<F, Derived> map(F fun) const {
+    CAPYBARA_INLINE UnaryExpr<F, Derived> map(F fun) const {
         return UnaryExpr<F, Derived>(fun, self());
     }
 
@@ -254,4 +254,4 @@ struct Expr<Derived, AccessMode::ReadWrite>:
     }
 };
 
-}  // namespace capibara
+}  // namespace capybara

@@ -2,7 +2,7 @@
 
 #include "mapping.h"
 
-namespace capibara {
+namespace capybara {
 namespace slice {
     struct All {
         All operator()() const {
@@ -41,7 +41,7 @@ namespace slice {
         }
 
         template<typename Size2>
-        CAPIBARA_INLINE auto operator()(Size2 s) const {
+        CAPYBARA_INLINE auto operator()(Size2 s) const {
             auto size = convert_integer<size_t>(s);
             return Insert<decltype(size)> {size};
         }
@@ -60,7 +60,7 @@ namespace slice {
     template<>
     struct IntoMapper<All> {
         template<typename Axis, size_t rank>
-        CAPIBARA_INLINE static auto into(Axis, size_t, All) {
+        CAPYBARA_INLINE static auto into(Axis, size_t, All) {
             return mapping::Identity<rank> {};
         }
     };
@@ -68,7 +68,7 @@ namespace slice {
     template<typename Slice>
     struct IntoMapper<Reverse<Slice>> {
         template<typename Axis, size_t Rank, typename Dim>
-        CAPIBARA_INLINE static auto
+        CAPYBARA_INLINE static auto
         into(Axis axis, Dim dim, Reverse<Slice> slice) {
             auto lhs = IntoMapper<Slice>::template into<Axis, Rank>(
                 axis,
@@ -86,7 +86,7 @@ namespace slice {
     template<>
     struct IntoMapper<Reverse<All>> {
         template<typename Axis, size_t Rank, typename Dim>
-        CAPIBARA_INLINE static auto into(Axis axis, Dim dim, Reverse<All>) {
+        CAPYBARA_INLINE static auto into(Axis axis, Dim dim, Reverse<All>) {
             return mapping::ReverseAxis<Axis, Dim, Rank> {axis, dim};
         }
     };
@@ -94,7 +94,7 @@ namespace slice {
     template<typename Size>
     struct IntoMapper<Insert<Size>> {
         template<typename Axis, size_t Rank>
-        CAPIBARA_INLINE static auto into(Axis axis, size_t, Insert<Size> r) {
+        CAPYBARA_INLINE static auto into(Axis axis, size_t, Insert<Size> r) {
             auto size = r.size_;
             return mapping::InsertAxis<decltype(axis), Rank, decltype(size)> {
                 axis,
@@ -105,7 +105,7 @@ namespace slice {
     template<typename Start, typename End, typename Stride>
     struct IntoMapper<Range<Start, End, Stride>> {
         template<typename Axis, size_t Rank>
-        CAPIBARA_INLINE static auto
+        CAPYBARA_INLINE static auto
         into(Axis axis, size_t, Range<Start, End, Stride> r) {
             return mapping::SliceAxis<Axis, Start, End, Stride, Rank> {
                 axis,
@@ -118,7 +118,7 @@ namespace slice {
     template<typename BlockSize>
     struct IntoMapper<Split<BlockSize>> {
         template<typename Axis, size_t Rank>
-        CAPIBARA_INLINE static auto
+        CAPYBARA_INLINE static auto
         into(Axis axis, size_t, Split<BlockSize> slice) {
             return mapping::SplitAxis<Axis, BlockSize, Rank> {
                 axis,
@@ -129,7 +129,7 @@ namespace slice {
     template<>
     struct IntoMapper<size_t> {
         template<typename Axis, size_t Rank>
-        CAPIBARA_INLINE static auto into(Axis axis, size_t, size_t index) {
+        CAPYBARA_INLINE static auto into(Axis axis, size_t, size_t index) {
             return mapping::RemoveAxis<Axis, Rank, size_t> {axis, index};
         }
     };
@@ -137,7 +137,7 @@ namespace slice {
     template<>
     struct IntoMapper<int> {
         template<typename Axis, size_t Rank>
-        CAPIBARA_INLINE static auto into(Axis axis, size_t dim, int index) {
+        CAPYBARA_INLINE static auto into(Axis axis, size_t dim, int index) {
             return IntoMapper<size_t>::template into<Axis, Rank>(
                 axis,
                 dim,
@@ -148,7 +148,7 @@ namespace slice {
     template<>
     struct IntoMapper<unsigned> {
         template<typename Axis, size_t Rank>
-        CAPIBARA_INLINE static auto
+        CAPYBARA_INLINE static auto
         into(Axis axis, size_t dim, unsigned index) {
             return IntoMapper<size_t>::template into<Axis, Rank>(
                 axis,
@@ -160,7 +160,7 @@ namespace slice {
     template<size_t I>
     struct IntoMapper<ConstInt<size_t, I>> {
         template<typename Axis, size_t Rank>
-        CAPIBARA_INLINE static auto
+        CAPYBARA_INLINE static auto
         into(Axis axis, size_t, ConstInt<size_t, I> index) {
             return mapping::RemoveAxis<Axis, Rank, ConstInt<size_t, I>> {
                 axis,
@@ -177,7 +177,7 @@ namespace slice {
             I >= rank,
             "invalid slice operation, did you pass too few arguments to slice?");
 
-        CAPIBARA_INLINE
+        CAPYBARA_INLINE
         auto operator()() const {
             return mapping::Identity<rank> {};
         }
@@ -189,7 +189,7 @@ namespace slice {
             I <= rank,
             "invalid slice operation, did you pass too many arguments to slice?");
 
-        CAPIBARA_INLINE
+        CAPYBARA_INLINE
         auto operator()(Slice slice, Slices... slices) const {
             throw std::runtime_error("no dimension to get");
 
@@ -214,7 +214,7 @@ constexpr slice::Insert<ConstInt<size_t, 0>> newaxis = {};
 constexpr slice::Reverse<slice::All> reverse = {};
 
 template<typename Start, typename End, typename Stride>
-CAPIBARA_INLINE constexpr auto range(Start start, End end, Stride stride) {
+CAPYBARA_INLINE constexpr auto range(Start start, End end, Stride stride) {
     auto start_ = convert_integer<size_t>(start);
     auto end_ = convert_integer<size_t>(end);
     auto stride_ = convert_integer<size_t>(stride);
@@ -225,23 +225,23 @@ CAPIBARA_INLINE constexpr auto range(Start start, End end, Stride stride) {
 }
 
 template<typename Start, typename End>
-CAPIBARA_INLINE constexpr auto range(Start start, End end) {
+CAPYBARA_INLINE constexpr auto range(Start start, End end) {
     return range(start, end, S1);
 }
 
 template<typename Count>
-CAPIBARA_INLINE constexpr auto first(Count count) {
+CAPYBARA_INLINE constexpr auto first(Count count) {
     return range(S0, count);
 }
 
 template<typename Size>
-CAPIBARA_INLINE constexpr auto split(Size size) {
+CAPYBARA_INLINE constexpr auto split(Size size) {
     auto size_ = convert_integer<size_t>(size);
     return slice::Split<decltype(size_)> {size_};
 }
 
 template<typename Expr, typename Axis, typename Slice>
-CAPIBARA_INLINE auto make_slice_expr(const Expr& expr, Axis axis, Slice slice) {
+CAPYBARA_INLINE auto make_slice_expr(const Expr& expr, Axis axis, Slice slice) {
     auto axis_ = into_axis<Expr::rank>(axis);
     auto op =
         slice::IntoMapper<Slice>::template into<decltype(axis_), Expr::rank>(
@@ -252,9 +252,9 @@ CAPIBARA_INLINE auto make_slice_expr(const Expr& expr, Axis axis, Slice slice) {
 }
 
 template<typename Expr, typename... Slices>
-CAPIBARA_INLINE auto make_slices_expr(const Expr& expr, Slices... slices) {
+CAPYBARA_INLINE auto make_slices_expr(const Expr& expr, Slices... slices) {
     auto op = slice::MultiMapperHelper<0, Expr::rank, Slices...> {}(slices...);
     return make_mapping_expr(op, expr);
 }
 
-}  // namespace capibara
+}  // namespace capybara

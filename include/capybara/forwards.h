@@ -1,7 +1,7 @@
 #pragma once
 #include "types.h"
 
-namespace capibara {
+namespace capybara {
 template<typename T>
 struct ExprTraits {};
 
@@ -37,4 +37,4 @@ struct ArrayBase;
 template<typename D, typename I = size_t>
 struct IndexedExpr;
 
-}  // namespace capibara
+}  // namespace capybara

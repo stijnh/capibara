@@ -4,7 +4,7 @@
 
 #include "util.h"
 
-namespace capibara {
+namespace capybara {
 
 template<typename T, T Value>
 struct ConstInt: std::integral_constant<T, Value> {
@@ -45,12 +45,12 @@ IMPL_BINARY_OPERATOR(>=, bool)
 #undef IMPL_BINARY_OPERATOR
 
 template<typename T>
-CAPIBARA_INLINE constexpr T convert_integer(T value) {
+CAPYBARA_INLINE constexpr T convert_integer(T value) {
     return value;
 }
 
 template<typename R, typename T, T Value>
-CAPIBARA_INLINE constexpr ConstInt<R, (T)Value>
+CAPYBARA_INLINE constexpr ConstInt<R, (T)Value>
 convert_integer(ConstInt<T, Value>) {
     static_assert(cmp_bounds<R>(Value), "value is out of bounds");
 
@@ -58,7 +58,7 @@ convert_integer(ConstInt<T, Value>) {
 }
 
 template<typename R, typename T, T Value>
-CAPIBARA_INLINE constexpr ConstInt<R, (T)Value>
+CAPYBARA_INLINE constexpr ConstInt<R, (T)Value>
 convert_integer(std::integral_constant<T, Value> v) {
     return convert_integer<R>(ConstInt<T, Value> {});
 }
@@ -75,12 +75,12 @@ static constexpr ConstSize<0> S0 = {};
 static constexpr ConstSize<1> S1 = {};
 static constexpr ConstSize<2> S2 = {};
 
-CAPIBARA_INLINE constexpr size_t convert_size(size_t value) {
+CAPYBARA_INLINE constexpr size_t convert_size(size_t value) {
     return value;
 }
 
 template<typename T, T Value>
-CAPIBARA_INLINE constexpr ConstSize<Value> convert_size(ConstInt<T, Value> v) {
+CAPYBARA_INLINE constexpr ConstSize<Value> convert_size(ConstInt<T, Value> v) {
     return convert_integer<size_t>(v);
 }
 
@@ -91,18 +91,18 @@ using DynDiff = ptrdiff_t;
 template<ptrdiff_t N>
 static constexpr ConstDiff<N> D = {};
 
-CAPIBARA_INLINE constexpr ptrdiff_t convert_diff(ptrdiff_t value) {
+CAPYBARA_INLINE constexpr ptrdiff_t convert_diff(ptrdiff_t value) {
     return value;
 }
 
 template<typename T, T Value>
-CAPIBARA_INLINE constexpr ConstDiff<(ptrdiff_t)Value>
+CAPYBARA_INLINE constexpr ConstDiff<(ptrdiff_t)Value>
 convert_diff(ConstInt<T, Value> v) {
     return convert_integer<ptrdiff_t>(v);
 }
 
 template<typename T, T Value>
-CAPIBARA_INLINE constexpr ConstDiff<(ptrdiff_t)Value>
+CAPYBARA_INLINE constexpr ConstDiff<(ptrdiff_t)Value>
 convert_diff(std::integral_constant<T, Value> v) {
     return convert_integer<ptrdiff_t>(v);
 }
@@ -115,20 +115,20 @@ using ConstFalse = ConstBool<false>;
 static constexpr ConstBool<true> const_true {};
 static constexpr ConstBool<false> const_false {};
 
-CAPIBARA_INLINE constexpr bool convert_bool(bool value) {
+CAPYBARA_INLINE constexpr bool convert_bool(bool value) {
     return value;
 }
 
 template<typename T, T Value>
-CAPIBARA_INLINE constexpr ConstBool<(bool)Value>
+CAPYBARA_INLINE constexpr ConstBool<(bool)Value>
 convert_bool(ConstInt<T, Value>) {
     return {};
 }
 
 template<typename T, T Value>
-CAPIBARA_INLINE constexpr ConstBool<(bool)Value>
+CAPYBARA_INLINE constexpr ConstBool<(bool)Value>
 convert_bool(std::integral_constant<T, Value>) {
     return {};
 }
 
-}  // namespace capibara
+}  // namespace capybara

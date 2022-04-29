@@ -1,7 +1,7 @@
 #include <complex>
 #pragma once
 
-namespace capibara {
+namespace capybara {
 
 template<typename F, typename E>
 struct UnaryCursor;
@@ -29,7 +29,7 @@ struct UnaryExpr: Expr<UnaryExpr<F, E>> {
     UnaryExpr(const E& inner) : op_({}), inner_(inner) {}
 
     template<typename Axis>
-    CAPIBARA_INLINE auto dim(Axis i) const {
+    CAPYBARA_INLINE auto dim(Axis i) const {
         return inner_.dim(i);
     }
 
@@ -60,7 +60,7 @@ struct UnaryCursor {
 };
 
 template<typename F, typename E>
-CAPIBARA_INLINE UnaryExpr<F, E> map(const Expr<E>& expr, F fun) {
+CAPYBARA_INLINE UnaryExpr<F, E> map(const Expr<E>& expr, F fun) {
     return UnaryExpr<F, E>(fun, expr.self());
 }
 
@@ -68,7 +68,7 @@ CAPIBARA_INLINE UnaryExpr<F, E> map(const Expr<E>& expr, F fun) {
     namespace unary_functors {                                                 \
         template<typename T>                                                   \
         struct type_name {                                                     \
-            CAPIBARA_INLINE                                                    \
+            CAPYBARA_INLINE                                                    \
             auto operator()(T value) const {                                   \
                 return fun_name(value);                                        \
             }                                                                  \
@@ -77,7 +77,7 @@ CAPIBARA_INLINE UnaryExpr<F, E> map(const Expr<E>& expr, F fun) {
     template<                                                                  \
         typename E,                                                            \
         typename = decltype(fun_name(std::declval<typename E::Value>()))> \
-    CAPIBARA_INLINE auto type_name(const ::capibara::Expr<E>& e) {             \
+    CAPYBARA_INLINE auto type_name(const ::capybara::Expr<E>& e) {             \
         return e.map(unary_functors::type_name<typename E::Value> {});    \
     }
 
@@ -120,7 +120,7 @@ DEFINE_SIMPLE_UNARY(conj, std::conj)
 namespace unary_functors {
     template<typename From, typename To>
     struct cast {
-        CAPIBARA_INLINE
+        CAPYBARA_INLINE
         To operator()(From value) const {
             return To(value);
         }
@@ -128,7 +128,7 @@ namespace unary_functors {
 }  // namespace unary_functors
 
 template<typename R, typename E>
-CAPIBARA_INLINE auto cast(const Expr<E>& e) {
+CAPYBARA_INLINE auto cast(const Expr<E>& e) {
     return e.map(unary_functors::cast<ExprValue<E>, R> {});
 }
 
@@ -155,7 +155,7 @@ namespace unary_functors {
 }  // namespace unary_functors
 
 template<typename E, typename T = ExprValue<E>>
-CAPIBARA_INLINE auto clamp(const Expr<E>& e, T lo, T hi) {
+CAPYBARA_INLINE auto clamp(const Expr<E>& e, T lo, T hi) {
     return e.map(unary_functors::clamp<T> {});
 }
 
@@ -164,7 +164,7 @@ namespace unary_functors {
     struct pow {
         pow(T expo) : expo_(expo) {}
 
-        CAPIBARA_INLINE
+        CAPYBARA_INLINE
         T operator()(T value) const {
             return pow(value, expo_);
         }
@@ -175,7 +175,7 @@ namespace unary_functors {
 
     template<typename T>
     struct pow2 {
-        CAPIBARA_INLINE
+        CAPYBARA_INLINE
         T operator()(T value) const {
             return value * value;
         }
@@ -184,13 +184,13 @@ namespace unary_functors {
 }  // namespace unary_functors
 
 template<typename E, typename T>
-CAPIBARA_INLINE auto pow(const Expr<E>& e, T expo) {
+CAPYBARA_INLINE auto pow(const Expr<E>& e, T expo) {
     return e.map(unary_functors::pow<ExprValue<E>, T> {expo});
 }
 
 template<typename E, typename T>
-CAPIBARA_INLINE auto pow2(const Expr<E>& e) {
+CAPYBARA_INLINE auto pow2(const Expr<E>& e) {
     return e.map(unary_functors::pow2<ExprValue<E>> {});
 }
 
-}  // namespace capibara
+}  // namespace capybara

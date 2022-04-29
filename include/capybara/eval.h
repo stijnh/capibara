@@ -10,7 +10,7 @@
 #include "const_int.h"
 #include "util.h"
 
-namespace capibara {
+namespace capybara {
 
 enum struct ControlFlow {
     Continue,
@@ -22,7 +22,7 @@ struct Eval;
 
 template<typename Cursor, typename Dims>
 struct Eval<Cursor, Dims, AxesOrder<>> {
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     static ControlFlow call(Cursor& cursor, const Dims&) {
         return cursor.eval();
     }
@@ -30,7 +30,7 @@ struct Eval<Cursor, Dims, AxesOrder<>> {
 
 template<typename Cursor, typename Dims, size_t I, size_t... Rest>
 struct Eval<Cursor, Dims, AxesOrder<I, Rest...>> {
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     static ControlFlow call(Cursor& cursor, const Dims& dims) {
         Axis<I> axis;
         auto n = convert_size(dims[axis]);
@@ -61,4 +61,4 @@ void evaluate(Cursor& cursor, const Dims& dims, Axes = {}) {
     Eval<Cursor, Dims, Axes>::call(cursor, dims);
 }
 
-}  // namespace capibara
+}  // namespace capybara

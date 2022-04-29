@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-namespace capibara {
+namespace capybara {
 
 template<typename F, typename D, typename = void>
 struct NullaryCursor;
@@ -51,7 +51,7 @@ struct NullaryCursor {
 };
 
 #define IMPL_SENTINEL_METHOD(type_name, value)       \
-    CAPIBARA_INLINE constexpr operator type_name() { \
+    CAPYBARA_INLINE constexpr operator type_name() { \
         return type_name {value};                    \
     }
 
@@ -156,4 +156,4 @@ auto empty_like(const Expr<E>& expr) {
     return fill_like(EmptySentinel {}, expr);
 }
 
-}  // namespace capibara
+}  // namespace capybara

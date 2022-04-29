@@ -1,9 +1,9 @@
-#include "capibara/dimensions.h"
+#include "capybara/dimensions.h"
 #include "catch.hpp"
 
 template<size_t Rank, typename T, typename R>
 auto test_axis_type(T input, R output) {
-    auto axis = capibara::into_axis<Rank>(input);
+    auto axis = capybara::into_axis<Rank>(input);
 
     CHECK(std::is_same<decltype(axis), R>::value);
     CHECK(axis == output);
@@ -24,7 +24,7 @@ auto test_axis_types(T input, R output) {
 }
 
 TEST_CASE("test Axis") {
-    using namespace capibara;
+    using namespace capybara;
 
     constexpr int rank = 3;
     test_axis_types<rank>((int)1, DynAxis<rank>(1));

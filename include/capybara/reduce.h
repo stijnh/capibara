@@ -2,7 +2,7 @@
 
 #include "eval.h"
 
-namespace capibara {
+namespace capybara {
 
 template<typename R, typename E, size_t N>
 struct ReduceCursor;
@@ -34,7 +34,7 @@ struct ReduceExpr: Expr<ReduceExpr<R, E, N>> {
         inner_(inner) {}
 
     template<typename Axis>
-    CAPIBARA_INLINE auto dim(Axis i) const {
+    CAPYBARA_INLINE auto dim(Axis i) const {
         return inner_.dim(i);
     }
 
@@ -144,4 +144,4 @@ namespace reducers {
 
 }  // namespace reducers
 
-}  // namespace capibara
+}  // namespace capybara

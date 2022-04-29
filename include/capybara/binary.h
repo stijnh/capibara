@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace capibara {
+namespace capybara {
 
 template<typename F, typename L, typename R>
 struct BinaryCursor;
@@ -35,7 +35,7 @@ struct BinaryExpr: Expr<BinaryExpr<F, L, R>> {
         rhs_(std::move(rhs)) {}
 
     template<typename Axis>
-    CAPIBARA_INLINE auto dim(Axis i) const {
+    CAPYBARA_INLINE auto dim(Axis i) const {
         return lhs_.dim(i);
     }
 
@@ -316,4 +316,4 @@ auto minmax(const Expr<L>& lhs, const Expr<R>& rhs) {
     return zip<binary_functors::minmax<T>>(lhs, rhs);
 }
 
-}  // namespace capibara
+}  // namespace capybara

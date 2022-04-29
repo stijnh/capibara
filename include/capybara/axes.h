@@ -7,7 +7,7 @@
 
 #include "const_int.h"
 
-namespace capibara {
+namespace capybara {
 
 template<size_t... Axes>
 using AxesOrder = std::index_sequence<Axes...>;
@@ -221,4 +221,4 @@ AxesOrder<Is...> into_axes(const AxesOrder<Is...>&) {
     return {};
 }
 
-}  // namespace capibara
+}  // namespace capybara

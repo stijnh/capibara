@@ -3,7 +3,7 @@
 #include "dimensions.h"
 #include "forwards.h"
 
-namespace capibara {
+namespace capybara {
 namespace mapping {
 
     template<size_t Rank>
@@ -18,12 +18,12 @@ namespace mapping {
         }
 
         template<typename E, typename Axis>
-        CAPIBARA_INLINE auto dim(const E& expr, Axis axis) const {
+        CAPYBARA_INLINE auto dim(const E& expr, Axis axis) const {
             return expr.dim(axis);
         }
 
         template<typename E, typename Axis>
-        CAPIBARA_INLINE auto stride(const E& expr, Axis axis) const {
+        CAPYBARA_INLINE auto stride(const E& expr, Axis axis) const {
             return expr.stride(axis);
         }
     };
@@ -40,7 +40,7 @@ namespace mapping {
 
         template<typename Index>
         std::array<Index, old_rank>
-            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
+            CAPYBARA_INLINE map(std::array<Index, new_rank> input) const {
             std::array<Index, old_rank> output;
 
             for (size_t i = 0; i < axis_(); i++) {
@@ -91,7 +91,7 @@ namespace mapping {
         }
 
         std::array<Index, old_rank>
-            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
+            CAPYBARA_INLINE map(std::array<Index, new_rank> input) const {
             std::array<Index, old_rank> output;
 
             for (size_t i = 0; i < axis_(); i++) {
@@ -142,7 +142,7 @@ namespace mapping {
 
         template<typename Index>
         std::array<Index, old_rank>
-            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
+            CAPYBARA_INLINE map(std::array<Index, new_rank> input) const {
             std::swap(input[a_()], input[b_()]);
             return input;
         }
@@ -185,13 +185,13 @@ namespace mapping {
 
         template<typename Index>
         std::array<Index, old_rank>
-            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
+            CAPYBARA_INLINE map(std::array<Index, new_rank> input) const {
             input[axis_()] = length_() - input[axis_()] - 1;
             return input;
         }
 
         template<typename E>
-        CAPIBARA_INLINE size_t dim(const E& expr, size_t axis) const {
+        CAPYBARA_INLINE size_t dim(const E& expr, size_t axis) const {
             return expr.dim(axis);
         }
 
@@ -216,7 +216,7 @@ namespace mapping {
 
         template<typename Index>
         std::array<Index, Rank>
-            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
+            CAPYBARA_INLINE map(std::array<Index, new_rank> input) const {
             std::array<Index, old_rank> result;
             for (size_t i = 0; i < old_rank / 2; i++) {
                 result[i] = input[old_rank - i - 1];
@@ -226,12 +226,12 @@ namespace mapping {
         }
 
         template<typename E>
-        CAPIBARA_INLINE size_t dim(const E& expr, size_t axis) const {
+        CAPYBARA_INLINE size_t dim(const E& expr, size_t axis) const {
             return expr.dim(old_rank - axis - 1);
         }
 
         template<typename E>
-        CAPIBARA_INLINE size_t stride(const E& expr, size_t axis) const {
+        CAPYBARA_INLINE size_t stride(const E& expr, size_t axis) const {
             return expr.stride(old_rank - axis - 1);
         }
     };
@@ -264,7 +264,7 @@ namespace mapping {
 
         template<typename Index>
         std::array<Index, old_rank>
-            CAPIBARA_INLINE map(std::array<Index, new_rank> index) const {
+            CAPYBARA_INLINE map(std::array<Index, new_rank> index) const {
             index[axis_()] = start_() + index[axis_()] * stride_();
             return index;
         }
@@ -301,7 +301,7 @@ namespace mapping {
 
         template<typename Index>
         std::array<Index, old_rank>
-            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
+            CAPYBARA_INLINE map(std::array<Index, new_rank> input) const {
             std::array<Index, old_rank> result;
             for (size_t i = 0; i < old_rank; i++) {
                 result[i] = input[0];
@@ -344,7 +344,7 @@ namespace mapping {
 
         template<typename Index>
         std::array<Index, old_rank>
-            CAPIBARA_INLINE map(std::array<Index, new_rank> input) const {
+            CAPYBARA_INLINE map(std::array<Index, new_rank> input) const {
             std::array<Index, old_rank> output;
 
             for (size_t i = 0; i < axis_; i++) {
@@ -401,7 +401,7 @@ namespace mapping {
 
         template<typename Index>
         std::array<Index, old_rank>
-            CAPIBARA_INLINE map(std::array<Index, new_rank> index) const {
+            CAPYBARA_INLINE map(std::array<Index, new_rank> index) const {
             return a_.map(b_.map(index));
         }
 
@@ -409,12 +409,12 @@ namespace mapping {
         struct dummy {
             dummy(const A& a, const E& expr) : a_(a), expr_(expr) {}
 
-            CAPIBARA_INLINE
+            CAPYBARA_INLINE
             size_t dim(size_t axis) const {
                 return a_.dim(expr_, axis);
             }
 
-            CAPIBARA_INLINE
+            CAPYBARA_INLINE
             size_t stride(size_t axis) const {
                 return a_.stride(expr_, axis);
             }
@@ -425,12 +425,12 @@ namespace mapping {
         };
 
         template<typename E>
-        CAPIBARA_INLINE size_t dim(const E& expr, size_t axis) const {
+        CAPYBARA_INLINE size_t dim(const E& expr, size_t axis) const {
             return b_.dim(dummy<E> {a_, expr}, axis);
         }
 
         template<typename E>
-        CAPIBARA_INLINE size_t stride(const E& expr, size_t axis) const {
+        CAPYBARA_INLINE size_t stride(const E& expr, size_t axis) const {
             return b_.stride(dummy<E> {a_, expr}, axis);
         }
 
@@ -529,18 +529,18 @@ struct MappingExpr: Expr<MappingExpr<F, Op>, Op::access_mode> {
 
     MappingExpr(F mapper, const Op& inner) : mapper_(mapper), inner_(inner) {}
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     Value eval(NdIndex idx) const {
         return inner_.eval(mapper_.map(idx));
     }
 
     template<typename Axis>
-    CAPIBARA_INLINE auto dim(Axis i) const {
+    CAPYBARA_INLINE auto dim(Axis i) const {
         return mapper_.dim(inner_, i);
     }
 
     template<typename Axis>
-    CAPIBARA_INLINE auto stride(Axis i) const {
+    CAPYBARA_INLINE auto stride(Axis i) const {
         return mapper_.stride(inner_, i);
     }
 
@@ -554,4 +554,4 @@ auto make_mapping_expr(F op, const E& inner) {
     return MappingExpr<F, E>(op, inner);
 }
 
-}  // namespace capibara
+}  // namespace capybara

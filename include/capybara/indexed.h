@@ -1,7 +1,7 @@
 #include <complex>
 #pragma once
 
-namespace capibara {
+namespace capybara {
 
 template<size_t N, typename I>
 struct IndexedCursor;
@@ -22,7 +22,7 @@ struct IndexedExpr: Expr<IndexedExpr<D, I>> {
     IndexedExpr(D dims) : dims_(std::move(dims)) {}
 
     template<typename Axis>
-    CAPIBARA_INLINE auto dim(Axis axis) const {
+    CAPYBARA_INLINE auto dim(Axis axis) const {
         return dims_[axis];
     }
 
@@ -43,11 +43,11 @@ struct IndexedCursor {
     }
 
     template<typename Axis, typename Diff>
-    CAPIBARA_INLINE void advance(Axis axis, Diff diff) {
+    CAPYBARA_INLINE void advance(Axis axis, Diff diff) {
         index_[axis] += diff;
     }
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     Value eval() const {
         return index_;
     }
@@ -66,4 +66,4 @@ auto indexed(const Expr<E>& expr) {
     return zip(arange(expr.dims()), expr);
 }
 
-}  // namespace capibara
+}  // namespace capybara

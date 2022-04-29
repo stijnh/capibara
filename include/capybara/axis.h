@@ -6,7 +6,7 @@
 
 #include "const_int.h"
 
-namespace capibara {
+namespace capybara {
 
 constexpr size_t MaxRank = std::numeric_limits<uint8_t>::max();
 
@@ -26,29 +26,29 @@ struct Axis: ConstInt<size_t, I> {
         static_assert(I < N, "Invalid axis given");
     }
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     constexpr operator size_t() const {
         return I;
     }
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     constexpr size_t get() const {
         return I;
     }
 
     template<size_t D>
-    CAPIBARA_INLINE constexpr Axis<I + D> increment() const {
+    CAPYBARA_INLINE constexpr Axis<I + D> increment() const {
         return {};
     }
 
     template<size_t J>
-        CAPIBARA_INLINE constexpr Axis
+        CAPYBARA_INLINE constexpr Axis
         < I<J ? I : I - 1> drop_axis(Axis<J>) const {
         return {};
     }
 
     template<size_t J>
-    CAPIBARA_INLINE constexpr Axis<I <= J ? I : I + 1>
+    CAPYBARA_INLINE constexpr Axis<I <= J ? I : I + 1>
     insert_axis(Axis<J>) const {
         return {};
     }
@@ -93,38 +93,38 @@ struct DynAxis {
         }
     }
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     constexpr size_t get() const {
         if (axis_ >= Rank) {
-            CAPIBARA_UNREACHABLE;
+            CAPYBARA_UNREACHABLE;
         }
 
         return axis_;
     }
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     constexpr operator size_t() const {
         return get();
     }
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     constexpr size_t operator()() const {
         return get();
     }
 
     template<size_t D>
-    CAPIBARA_INLINE constexpr DynAxis<Rank + D> increment() const {
+    CAPYBARA_INLINE constexpr DynAxis<Rank + D> increment() const {
         return {Trusted {}, get() + D};
     }
 
     template<size_t J>
-    CAPIBARA_INLINE constexpr DynAxis<Rank - 1> drop_axis(Axis<J>) const {
+    CAPYBARA_INLINE constexpr DynAxis<Rank - 1> drop_axis(Axis<J>) const {
         static_assert(Rank > 0, "internal error");
         return {Trusted {}, axis_ < J ? axis_ : axis_ - 1};
     }
 
     template<size_t J>
-    CAPIBARA_INLINE constexpr DynAxis<Rank + 1> insert_axis(Axis<J>) const {
+    CAPYBARA_INLINE constexpr DynAxis<Rank + 1> insert_axis(Axis<J>) const {
         return {Trusted {}, axis_ <= J ? axis_ : axis_ + 1};
     }
 
@@ -133,25 +133,25 @@ struct DynAxis {
 };
 
 template<size_t Rank, size_t I>
-CAPIBARA_INLINE constexpr Axis<I> into_axis(Axis<I>) {
+CAPYBARA_INLINE constexpr Axis<I> into_axis(Axis<I>) {
     static_assert(I < Rank, "invalid axis");
     return {};
 }
 
 template<size_t Rank, typename T, T Value>
-CAPIBARA_INLINE constexpr Axis<(size_t)Value>
+CAPYBARA_INLINE constexpr Axis<(size_t)Value>
 into_axis(std::integral_constant<T, Value>) {
     static_assert(cmp_bounds(Value, 0, Rank - 1), "invalid axis");
     return {};
 }
 
 template<size_t Rank>
-CAPIBARA_INLINE constexpr DynAxis<Rank> into_axis(const DynAxis<Rank>& axis) {
+CAPYBARA_INLINE constexpr DynAxis<Rank> into_axis(const DynAxis<Rank>& axis) {
     return axis;
 }
 
 template<size_t Rank, typename Axis>
-CAPIBARA_INLINE constexpr void assert_rank(const Axis& axis) {
+CAPYBARA_INLINE constexpr void assert_rank(const Axis& axis) {
     into_axis<Rank>(axis).template assert_rank<Rank>();
 }
 
@@ -167,4 +167,4 @@ DEFINE_FIXED_AXIS_CONSTANT(5)
 DEFINE_FIXED_AXIS_CONSTANT(6)
 #undef DEFINE_FIXED_AXIS_CONSTANT
 
-}  // namespace capibara
+}  // namespace capybara

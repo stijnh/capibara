@@ -8,7 +8,7 @@
 #include "const_int.h"
 #include "types.h"
 
-namespace capibara {
+namespace capybara {
 
 template<typename... Ts>
 struct Dimensions;
@@ -471,4 +471,4 @@ std::ostream& operator<<(std::ostream& os, const Dimensions<Ts...>& dims) {
     return os;
 }
 
-}  // namespace capibara
+}  // namespace capybara

@@ -2,7 +2,7 @@
 
 #include "eval.h"
 
-namespace capibara {
+namespace capybara {
 
 template<typename E, typename F>
 struct EachCursor {
@@ -14,11 +14,11 @@ struct EachCursor {
         cursor_(e.cursor()) {}
 
     template<typename Axis, typename Diff>
-    CAPIBARA_INLINE void advance(Axis axis, Diff diff) {
+    CAPYBARA_INLINE void advance(Axis axis, Diff diff) {
         cursor_.advance(axis, diff);
     }
 
-    CAPIBARA_INLINE
+    CAPYBARA_INLINE
     ControlFlow eval() const {
         functor_(cursor_.eval());
         return ControlFlow::Continue;
@@ -35,4 +35,4 @@ void for_each(const Expr<E>& expr, F fun) {
     evaluate(cursor, expr.dims());
 }
 
-}  // namespace capibara
+}  // namespace capybara

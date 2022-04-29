@@ -1,14 +1,14 @@
-#include "capibara/eval.h"
+#include "capybara/eval.h"
 #include "catch.hpp"
 
 #define CHECK_SAME(...) CHECK(std::is_same<__VA_ARGS__>::value)
 
 // Quick and dirty shorthand
 template<size_t... Is>
-using A = capibara::AxesOrder<Is...>;
+using A = capybara::AxesOrder<Is...>;
 
 TEST_CASE("axes") {
-    using namespace capibara;
+    using namespace capybara;
 
     CHECK_SAME(axes::seq<0>, A<>);
     CHECK_SAME(axes::seq<1>, A<0>);

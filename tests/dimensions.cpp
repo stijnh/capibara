@@ -1,9 +1,9 @@
-#include "capibara/dimensions.h"
+#include "capybara/dimensions.h"
 
 #include "catch.hpp"
 
 TEST_CASE("test Dimensions") {
-    using namespace capibara;
+    using namespace capybara;
 
     SECTION("check types") {
         CHECK(std::is_same<Dimensions<>, DimensionsN<0>>::value);

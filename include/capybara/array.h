@@ -7,7 +7,7 @@
 #include "expr.h"
 #include "forwards.h"
 
-namespace capibara {
+namespace capybara {
 
 template<typename T, typename D>
 struct ArrayCursor;
@@ -204,4 +204,4 @@ struct ArrayCursor {
     const ArrayBase<T, D>& inner_;
 };
 
-}  // namespace capibara
+}  // namespace capybara
