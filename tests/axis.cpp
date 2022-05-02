@@ -1,4 +1,5 @@
-#include "capybara/dimensions.h"
+#include "capybara/axis.h"
+
 #include "catch.hpp"
 
 template<size_t Rank, typename T, typename R>
@@ -33,10 +34,14 @@ TEST_CASE("test Axis") {
     test_axis_types<rank>((DynAxis<rank - 1>)1, DynAxis<rank>(1));
     test_axis_types<rank>((DynAxis<rank + 1>)1, DynAxis<rank>(1));
 
-    test_axis_types<rank>(Axis1, Axis1);
-    test_axis_types<rank>(std::integral_constant<int, 1> {}, Axis1);
-    test_axis_types<rank>(std::integral_constant<size_t, 1> {}, Axis1);
-    test_axis_types<rank>(std::integral_constant<bool, true> {}, Axis1);
+    test_axis_types<rank>(axis1, axis1);
+    test_axis_types<rank>(std::integral_constant<int, 1> {}, axis1);
+    test_axis_types<rank>(std::integral_constant<size_t, 1> {}, axis1);
+    test_axis_types<rank>(std::integral_constant<bool, true> {}, axis1);
+
+    test_axis_types<rank>(ConstInt<int, 1> {}, axis1);
+    test_axis_types<rank>(ConstInt<size_t, 1> {}, axis1);
+    test_axis_types<rank>(ConstInt<bool, true> {}, axis1);
 
     CHECK_THROWS(into_axis<3>(-1));
     CHECK(into_axis<3>(0) == DynAxis<3>(0));
@@ -45,4 +50,10 @@ TEST_CASE("test Axis") {
     CHECK_THROWS(into_axis<3>(3));
     CHECK_THROWS(into_axis<3>(10));
     CHECK_THROWS(into_axis<3>(-5));
+
+    CHECK(std::is_empty<DynAxis<1>>::value);
+    CHECK_FALSE(std::is_empty<DynAxis<2>>::value);
+
+    CHECK(sizeof(DynAxis<1>) == 1);
+    CHECK(sizeof(DynAxis<2>) == 1);
 }

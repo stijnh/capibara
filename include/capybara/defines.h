@@ -32,5 +32,11 @@
 #else
     #define CAPYBARA_UNREACHABLE \
         do {                     \
-        } while (0)
+        } while (1)
 #endif
+
+#define CAPYBARA_TODO(msg)             \
+    do {                               \
+        throw std::runtime_error(msg); \
+        CAPYBARA_UNREACHABLE;          \
+    } while (0)

@@ -5,6 +5,18 @@ namespace capybara {
 template<typename T>
 struct ExprTraits {};
 
+template<typename T>
+struct ExprTraits<T&>: ExprTraits<T> {};
+
+template<typename T>
+struct ExprTraits<T&&>: ExprTraits<T> {};
+
+template<typename T>
+struct ExprTraits<T*>: ExprTraits<T> {};
+
+template<typename T>
+struct ExprTraits<const T>: ExprTraits<T> {};
+
 template<typename E>
 using ExprValue = typename ExprTraits<E>::Value;
 
@@ -28,7 +40,7 @@ struct UnaryExpr;
 template<typename F, typename L, typename R>
 struct BinaryExpr;
 
-template<typename F, typename Op>
+template<typename M, typename E>
 struct MappingExpr;
 
 template<typename T, typename D>

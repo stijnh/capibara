@@ -1,5 +1,5 @@
 fmt:
-	clang-format -i include/capibara/*.h tests/*.cpp
+	clang-format -i include/capybara/*.h include/capybara/*/*.h tests/*.cpp
 
 test: build
 	cd build && make -p tests

@@ -37,9 +37,7 @@ struct Eval<Cursor, Dims, AxesOrder<I, Rest...>> {
 
         for (size_t i = 0; i < n; i++) {
             ControlFlow result =
-                Eval<Cursor, Dims, std::index_sequence<Rest...>>::call(
-                    cursor,
-                    dims);
+                Eval<Cursor, Dims, AxesOrder<Rest...>>::call(cursor, dims);
 
             if (result == ControlFlow::Break) {
                 return ControlFlow::Break;
@@ -55,8 +53,7 @@ struct Eval<Cursor, Dims, AxesOrder<I, Rest...>> {
 
 template<typename Cursor, typename Dims, typename Axes = axes::seq<Dims::rank>>
 void evaluate(Cursor& cursor, const Dims& dims, Axes = {}) {
-    static_assert(axes::is_distinct<Axes>, "Axes must be distinct");
-    static_assert(axes::has_rank<Axes, Dims::rank>, "Axes have incorrect rank");
+    static_assert(axes::is_permutation<Axes>, "Axes must be a permutation");
 
     Eval<Cursor, Dims, Axes>::call(cursor, dims);
 }

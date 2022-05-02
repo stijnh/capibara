@@ -9,11 +9,14 @@ struct BinaryCursor;
 
 template<typename F, typename L, typename R>
 struct ExprTraits<BinaryExpr<F, L, R>> {
+    static_assert(
+        ExprTraits<L>::rank == ExprTraits<R>::rank,
+        "Operands must have equal rank");
+
     static constexpr size_t rank = ExprTraits<L>::rank;
     using Cursor = BinaryCursor<F, L, R>;
     using Nested = BinaryExpr<F, L, R>;
-    using Value = typename std::result_of<
-        F(ExprValue<L>, ExprValue<R>)>::type;
+    using Value = typename std::result_of<F(ExprValue<L>, ExprValue<R>)>::type;
     using Index = typename std::common_type<
         typename ExprTraits<L>::Index,
         typename ExprTraits<R>::Index>::type;
@@ -71,17 +74,14 @@ struct BinaryCursor {
     typename R::Cursor rhs_;
 };
 
-template<typename F, typename L, typename R>
-BinaryExpr<F, L, R> zip(const Expr<L>& lhs, const Expr<R>& rhs, F op) {
-    return BinaryExpr<F, L, R> {op, lhs.self(), rhs.self()};
-}
-
-template<typename F, typename L, typename R>
-BinaryExpr<F, L, R> zip(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip(lhs, rhs, F {});
-}
-
 namespace binary_functors {
+    struct pair_with {
+        template<typename L, typename R>
+        std::pair<L, R> operator()(L left, R right) const {
+            return std::make_pair<L, R>(std::move(left), std::move(right));
+        }
+    };
+
     template<typename L, typename R>
     struct add {
         auto operator()(L left, R right) const -> decltype(left + right) {
@@ -172,101 +172,7 @@ namespace binary_functors {
             return cmp_not_equal(left, right);
         }
     };
-}  // namespace binary_functors
 
-template<typename L, typename R>
-auto operator+(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<binary_functors::add<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-template<typename L, typename R>
-auto operator-(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<binary_functors::sub<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-template<typename L, typename R>
-auto operator*(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<binary_functors::mul<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-template<typename L, typename R>
-auto operator/(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<binary_functors::div<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-template<typename L, typename R>
-auto operator%(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<binary_functors::rem<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-template<typename L, typename R>
-auto operator&(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<
-        binary_functors::bit_and<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-template<typename L, typename R>
-auto operator|(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<binary_functors::bit_or<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-template<typename L, typename R>
-auto operator==(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<binary_functors::cmp_eq<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-template<typename L, typename R>
-auto operator!=(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<binary_functors::cmp_ne<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-template<typename L, typename R>
-auto operator<(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<binary_functors::cmp_lt<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-template<typename L, typename R>
-auto operator>(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<binary_functors::cmp_gt<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-template<typename L, typename R>
-auto operator<=(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<binary_functors::cmp_le<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-template<typename L, typename R>
-auto operator>=(const Expr<L>& lhs, const Expr<R>& rhs) {
-    return zip<binary_functors::cmp_ge<ExprValue<L>, ExprValue<R>>>(
-        lhs,
-        rhs);
-}
-
-namespace binary_functors {
     template<typename T>
     struct min {
         T operator()(T left, T right) const {
@@ -289,11 +195,85 @@ namespace binary_functors {
     };
 }  // namespace binary_functors
 
+template<typename F, typename L, typename R>
+BinaryExpr<F, L, R> zip(const Expr<L>& lhs, const Expr<R>& rhs, F op) {
+    return BinaryExpr<F, L, R> {op, lhs.self(), rhs.self()};
+}
+
+template<typename F = binary_functors::pair_with, typename L, typename R>
+BinaryExpr<F, L, R> zip(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip(lhs, rhs, F {});
+}
+
+template<typename L, typename R>
+auto operator+(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::add<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
+template<typename L, typename R>
+auto operator-(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::sub<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
+template<typename L, typename R>
+auto operator*(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::mul<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
+template<typename L, typename R>
+auto operator/(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::div<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
+template<typename L, typename R>
+auto operator%(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::rem<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
+template<typename L, typename R>
+auto operator&(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::bit_and<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
+template<typename L, typename R>
+auto operator|(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::bit_or<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
+template<typename L, typename R>
+auto operator==(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::cmp_eq<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
+template<typename L, typename R>
+auto operator!=(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::cmp_ne<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
+template<typename L, typename R>
+auto operator<(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::cmp_lt<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
+template<typename L, typename R>
+auto operator>(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::cmp_gt<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
+template<typename L, typename R>
+auto operator<=(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::cmp_le<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
+template<typename L, typename R>
+auto operator>=(const Expr<L>& lhs, const Expr<R>& rhs) {
+    return zip<binary_functors::cmp_ge<ExprValue<L>, ExprValue<R>>>(lhs, rhs);
+}
+
 template<
     typename L,
     typename R,
-    typename T =
-        typename std::common_type<ExprValue<L>, ExprValue<R>>::type>
+    typename T = typename std::common_type<ExprValue<L>, ExprValue<R>>::type>
 auto min(const Expr<L>& lhs, const Expr<R>& rhs) {
     return zip<binary_functors::min<T>>(lhs, rhs);
 }
@@ -301,8 +281,7 @@ auto min(const Expr<L>& lhs, const Expr<R>& rhs) {
 template<
     typename L,
     typename R,
-    typename T =
-        typename std::common_type<ExprValue<L>, ExprValue<R>>::type>
+    typename T = typename std::common_type<ExprValue<L>, ExprValue<R>>::type>
 auto max(const Expr<L>& lhs, const Expr<R>& rhs) {
     return zip<binary_functors::max<T>>(lhs, rhs);
 }
@@ -310,8 +289,7 @@ auto max(const Expr<L>& lhs, const Expr<R>& rhs) {
 template<
     typename L,
     typename R,
-    typename T =
-        typename std::common_type<ExprValue<L>, ExprValue<R>>::type>
+    typename T = typename std::common_type<ExprValue<L>, ExprValue<R>>::type>
 auto minmax(const Expr<L>& lhs, const Expr<R>& rhs) {
     return zip<binary_functors::minmax<T>>(lhs, rhs);
 }

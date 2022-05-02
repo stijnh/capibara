@@ -305,9 +305,7 @@ struct Dimensions {
 
     template<typename F, typename Indices = std::index_sequence_for<Ts...>>
     void assign(F fun, Indices = {}) {
-        dimension_helpers::Assign<Value, Indices, Ts...>::call(
-            storage_,
-            fun);
+        dimension_helpers::Assign<Value, Indices, Ts...>::call(storage_, fun);
     }
 
     Dimensions& operator=(const Dimensions&) = default;
@@ -346,10 +344,8 @@ struct Dimensions {
     template<typename Axis>
     auto operator[](Axis axis) const {
         auto axis_ = into_axis<rank>(axis);
-        return dimension_helpers::
-            Getter<Value, 0, decltype(axis_), Ts...>::call(
-                axis_,
-                storage_);
+        return dimension_helpers::Getter<Value, 0, decltype(axis_), Ts...>::
+            call(axis_, storage_);
     }
 
     static constexpr size_t size() noexcept {

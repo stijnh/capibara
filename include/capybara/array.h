@@ -171,7 +171,7 @@ namespace array_helpers {
     struct Stride<Axis, 1> {
         template<typename D>
         static auto call(Axis, const D& dims) {
-            return dims[Axis0];
+            return dims[axis0];
         }
     };
 }  // namespace array_helpers

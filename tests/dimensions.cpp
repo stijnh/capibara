@@ -2,45 +2,39 @@
 
 #include "catch.hpp"
 
+#define CHECK_SAME(...) CHECK(std::is_same<__VA_ARGS__>::value)
+
 TEST_CASE("test Dimensions") {
     using namespace capybara;
 
     SECTION("check types") {
-        CHECK(std::is_same<Dimensions<>, DimensionsN<0>>::value);
-        CHECK(std::is_same<Dimensions<DynSize>, DimensionsN<1>>::value);
-        CHECK(
-            std::is_same<Dimensions<DynSize, DynSize>, DimensionsN<2>>::value);
-        CHECK(std::is_same<
-              Dimensions<DynSize, DynSize, DynSize>,
-              DimensionsN<3>>::value);
+        CHECK_SAME(Dimensions<>, DimensionsN<0>);
+        CHECK_SAME(Dimensions<DynSize>, DimensionsN<1>);
+        CHECK_SAME(Dimensions<DynSize, DynSize>, DimensionsN<2>);
+        CHECK_SAME(Dimensions<DynSize, DynSize, DynSize>, DimensionsN<3>);
 
-        CHECK(std::is_same<Dimensions<>, DimensionsDyn<>>::value);
-        CHECK(std::is_same<Dimensions<DynSize>, DimensionsDyn<Dyn>>::value);
-        CHECK(std::is_same<Dimensions<ConstSize<123>>, DimensionsDyn<123>>::
-                  value);
-        CHECK(std::is_same<
-              Dimensions<DynSize, ConstSize<123>>,
-              DimensionsDyn<Dyn, 123>>::value);
-        CHECK(std::is_same<
-              Dimensions<ConstSize<123>, DynSize>,
-              DimensionsDyn<123, Dyn>>::value);
-        CHECK(std::is_same<
-              Dimensions<DynSize, DynSize>,
-              DimensionsDyn<Dyn, Dyn>>::value);
+        CHECK_SAME(Dimensions<>, DimensionsDyn<>);
+        CHECK_SAME(Dimensions<DynSize>, DimensionsDyn<Dyn>);
+        CHECK_SAME(Dimensions<ConstSize<123>>, DimensionsDyn<123>);
+        CHECK_SAME(
+            Dimensions<DynSize, ConstSize<123>>,
+            DimensionsDyn<Dyn, 123>);
+        CHECK_SAME(
+            Dimensions<ConstSize<123>, DynSize>,
+            DimensionsDyn<123, Dyn>);
+        CHECK_SAME(Dimensions<DynSize, DynSize>, DimensionsDyn<Dyn, Dyn>);
 
-        CHECK(std::is_same<Dimensions<>, decltype(dims())>::value);
-        CHECK(std::is_same<Dimensions<DynSize>, decltype(dims(1))>::value);
-        CHECK(std::is_same<Dimensions<DynSize, DynSize>, decltype(dims(1, 2))>::
-                  value);
+        CHECK_SAME(Dimensions<>, decltype(dims()));
+        CHECK_SAME(Dimensions<DynSize>, decltype(dims(1)));
+        CHECK_SAME(Dimensions<DynSize, DynSize>, decltype(dims(1, 2)));
 
-        CHECK(std::is_same<Dimensions<ConstSize<7>>, decltype(dims(S<7>))>::
-                  value);
-        CHECK(std::is_same<
-              Dimensions<ConstSize<12>, DynSize>,
-              decltype(dims(S<12>, 2))>::value);
-        CHECK(std::is_same<
-              Dimensions<DynSize, ConstSize<20>>,
-              decltype(dims(1, S<20>))>::value);
+        CHECK_SAME(Dimensions<ConstSize<7>>, decltype(dims(S<7>)));
+        CHECK_SAME(
+            Dimensions<ConstSize<12>, DynSize>,
+            decltype(dims(S<12>, 2)));
+        CHECK_SAME(
+            Dimensions<DynSize, ConstSize<20>>,
+            decltype(dims(1, S<20>)));
     }
 
     SECTION("operator==") {

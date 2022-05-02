@@ -30,12 +30,12 @@ struct ExprExtra<Derived, 1> {
 
     template<typename Index>
     CAPYBARA_INLINE Value operator[](Index index) {
-        return ((const Derived*)this)->remove_axis(Axis0, index).eval({});
+        return ((const Derived*)this)->remove_axis(axis0, index).eval({});
     }
 
     CAPYBARA_INLINE
     auto reverse() {
-        return ((const Derived*)this)->reverse_axis(Axis0);
+        return ((const Derived*)this)->reverse_axis(axis0);
     }
 };
 
@@ -45,27 +45,27 @@ struct ExprExtra<Derived, 2> {
 
     CAPYBARA_INLINE
     auto row(size_t i) const {
-        return ((const Derived*)this)->slice_axis(Axis0, i);
+        return ((const Derived*)this)->slice_axis(axis0, i);
     }
 
     CAPYBARA_INLINE
     auto col(size_t i) const {
-        return ((const Derived*)this)->slice_axis(Axis1, i);
+        return ((const Derived*)this)->slice_axis(axis0, i);
     }
 
     CAPYBARA_INLINE
     size_t nrows(size_t i) const {
-        return ((const Derived*)this)->dim(Axis0);
+        return ((const Derived*)this)->dim(axis0);
     }
 
     CAPYBARA_INLINE
     size_t ncols(size_t i) const {
-        return ((const Derived*)this)->dim(Axis1);
+        return ((const Derived*)this)->dim(axis1);
     }
 
     template<typename Index>
     CAPYBARA_INLINE auto operator[](Index index) {
-        return ((const Derived*)this)->remove_axis(Axis0, index);
+        return ((const Derived*)this)->remove_axis(axis0, index);
     }
 };
 
@@ -137,7 +137,7 @@ struct Expr<Derived, AccessMode::ReadOnly>:
     }
 
     template<typename Derived2, typename Op>
-    auto zipWith(const Expr<Derived2>& rhs, Op op) const {
+    auto zip_with(const Expr<Derived2>& rhs, Op op) const {
         return BinaryExpr<Op, Derived, Derived2>(op, self(), rhs.self());
     }
 
@@ -145,26 +145,23 @@ struct Expr<Derived, AccessMode::ReadOnly>:
     auto swap_axes(AxisA raw_a, AxisB raw_b) const {
         auto a = into_axis<rank>(raw_a);
         auto b = into_axis<rank>(raw_b);
-        auto op = mapping::SwapAxes<decltype(a), decltype(b), rank>(a, b);
-        return make_mapping_expr(op, self());
+        mapping::Swap<rank, decltype(a), decltype(b)> op {a, b};
+        return make_mapping_expr(self(), op);
     }
 
     auto diagonal() const {
-        return make_mapping_expr(mapping::Diagonal<rank>(), self());
+        CAPYBARA_TODO("unimplemented");
     }
 
     auto transpose() const {
-        return make_mapping_expr(mapping::ReverseAxes<rank>(), self());
+        return make_mapping_expr(self(), mapping::Transpose<rank> {});
     }
 
     template<typename Axis>
     auto reverse_axis(Axis axis) const {
         auto axis_ = into_axis<rank>(axis);
         auto dim = self().dim(axis_);
-        auto op = mapping::ReverseAxis<decltype(axis_), decltype(dim), rank>(
-            axis_,
-            dim);
-        return make_mapping_expr(op, self());
+        CAPYBARA_TODO("unimplemented");
     }
 
     template<typename Axis, typename Slice>
@@ -182,12 +179,9 @@ struct Expr<Derived, AccessMode::ReadOnly>:
         return make_slice_expr(self(), axis, range(start, end, stride));
     }
 
-    template<typename Axis, typename Index>
-    auto remove_axis(Axis axis, Index index) const {
-        return make_slice_expr(
-            self(),
-            axis,
-            convert_integer<Index>(index));
+    template<typename Axis, typename Idx>
+    auto remove_axis(Axis axis, Idx index) const {
+        return make_slice_expr(self(), axis, convert_integer<Index>(index));
     }
 
     template<typename Axis>
@@ -195,8 +189,8 @@ struct Expr<Derived, AccessMode::ReadOnly>:
         return make_slice_expr(self(), axis, convert_integer<Index>(S0));
     }
 
-    template<typename Axis, typename Index>
-    auto insert_axis(Axis axis, Index size) const {
+    template<typename Axis, typename Size>
+    auto insert_axis(Axis axis, Size size) const {
         return make_slice_expr(
             self(),
             axis,
@@ -210,7 +204,12 @@ struct Expr<Derived, AccessMode::ReadOnly>:
 
     template<typename... Slices>
     auto slice(Slices... slices) const {
-        return make_slices_expr(self(), slices...);
+        return make_slices_expr(self(), std::forward<Slices>(slices)...);
+    }
+
+    template<typename... Slices>
+    auto operator()(Slices... slices) const {
+        return slice(std::forward<Slices>(slices)...);
     }
 };
 
@@ -223,30 +222,6 @@ struct Expr<Derived, AccessMode::ReadWrite>:
     using Base::self;
     using typename Base::NdIndex;
     using typename Base::Value;
-
-    const Value& operator()(NdIndex idx) const {
-        return self().access(idx);
-    }
-
-    template<typename... Is>
-    const Value& operator()(Is... idxs) const {
-        NdIndex idx = {idxs...};
-        return self().access(idx);
-    }
-
-    Value& operator()(NdIndex idx) {
-        return this->self().access(idx);
-    }
-
-    template<typename... Is>
-    Value& operator()(Is... idxs) {
-        NdIndex idx = {idxs...};
-        return self().access(idx);
-    }
-
-    void store(NdIndex idx, Value v) {
-        self().access(idx) = std::move(v);
-    }
 
     template<typename Derived2>
     Derived& operator=(const Expr<Derived2>& rhs) {

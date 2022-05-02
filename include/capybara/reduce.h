@@ -54,7 +54,7 @@ struct InnerReduceCursor {
 
     template<typename Axis, typename Diff>
     void advance(Axis axis, Diff diff) {
-        inner_.cursor_.advance(axis.template increment<N>(), diff);
+        cursor_.advance(axis.template increment<N>(), diff);
     }
 
     ControlFlow eval() const {
@@ -127,9 +127,9 @@ namespace reducers {
 
     template<typename T, typename R = T>
     struct Sum {
-        ConstFalse accumulate(T d) {
+        bool accumulate(T d) {
             state_ += T;
-            return {};
+            return false;
         }
 
         R reset() {

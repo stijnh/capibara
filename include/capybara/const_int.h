@@ -53,13 +53,12 @@ template<typename R, typename T, T Value>
 CAPYBARA_INLINE constexpr ConstInt<R, (T)Value>
 convert_integer(ConstInt<T, Value>) {
     static_assert(cmp_bounds<R>(Value), "value is out of bounds");
-
     return {};
 }
 
 template<typename R, typename T, T Value>
 CAPYBARA_INLINE constexpr ConstInt<R, (T)Value>
-convert_integer(std::integral_constant<T, Value> v) {
+convert_integer(std::integral_constant<T, Value>) {
     return convert_integer<R>(ConstInt<T, Value> {});
 }
 

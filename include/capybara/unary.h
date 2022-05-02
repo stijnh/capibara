@@ -64,20 +64,20 @@ CAPYBARA_INLINE UnaryExpr<F, E> map(const Expr<E>& expr, F fun) {
     return UnaryExpr<F, E>(fun, expr.self());
 }
 
-#define DEFINE_SIMPLE_UNARY(type_name, fun_name)                               \
-    namespace unary_functors {                                                 \
-        template<typename T>                                                   \
-        struct type_name {                                                     \
-            CAPYBARA_INLINE                                                    \
-            auto operator()(T value) const {                                   \
-                return fun_name(value);                                        \
-            }                                                                  \
-        };                                                                     \
-    }                                                                          \
-    template<                                                                  \
-        typename E,                                                            \
+#define DEFINE_SIMPLE_UNARY(type_name, fun_name)                          \
+    namespace unary_functors {                                            \
+        template<typename T>                                              \
+        struct type_name {                                                \
+            CAPYBARA_INLINE                                               \
+            auto operator()(T value) const {                              \
+                return fun_name(value);                                   \
+            }                                                             \
+        };                                                                \
+    }                                                                     \
+    template<                                                             \
+        typename E,                                                       \
         typename = decltype(fun_name(std::declval<typename E::Value>()))> \
-    CAPYBARA_INLINE auto type_name(const ::capybara::Expr<E>& e) {             \
+    CAPYBARA_INLINE auto type_name(const ::capybara::Expr<E>& e) {        \
         return e.map(unary_functors::type_name<typename E::Value> {});    \
     }
 
