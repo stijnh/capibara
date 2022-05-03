@@ -6,7 +6,7 @@
 #include "identity.h"
 
 namespace capybara {
-namespace mapping {
+namespace view {
     struct First {
         template<typename Dim>
         ConstSize<0> operator()(Dim d) const {
@@ -164,7 +164,7 @@ namespace mapping {
 
         template<size_t I, size_t NotI>
         struct SliceHelper<Axis<I>, Axis<NotI>> {
-            template<typename F, typename Length, Stride stride>
+            template<typename F, typename Length, typename Stride>
             auto
             dim(F delegate,
                 Axis<I>,
@@ -281,5 +281,5 @@ namespace mapping {
         Axis axis_;
     };
 
-}  // namespace mapping
+}  // namespace view
 }  // namespace capybara

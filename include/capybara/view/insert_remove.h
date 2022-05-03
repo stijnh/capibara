@@ -3,8 +3,7 @@
 #include "../axis.h"
 
 namespace capybara {
-
-namespace mapping {
+namespace view {
     template<typename Needle, typename Axis>
     struct InsertHelper;
 
@@ -162,6 +161,6 @@ namespace mapping {
         Axis axis_;
         Index index_;
     };
-}  // namespace mapping
+}  // namespace view
 
 }  // namespace capybara

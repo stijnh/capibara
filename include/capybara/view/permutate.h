@@ -3,8 +3,7 @@
 #include "../axis.h"
 
 namespace capybara {
-
-namespace mapping {
+namespace view {
     template<typename Base, typename Axis>
     struct PermutationHelper;
 
@@ -188,5 +187,5 @@ namespace mapping {
         }
     };
 
-}  // namespace mapping
+}  // namespace view
 }  // namespace capybara

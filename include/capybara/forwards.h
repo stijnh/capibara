@@ -29,7 +29,7 @@ template<typename Derived, AccessMode = AccessMode::ReadOnly>
 struct Expr;
 
 template<typename Derived>
-using View = Expr<Derived, AccessMode::ReadWrite>;
+using ExprWrite = Expr<Derived, AccessMode::ReadWrite>;
 
 template<typename F, typename Dims>
 struct NullaryExpr;

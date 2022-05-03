@@ -3,27 +3,27 @@
 #include "defines.h"
 #include "expr.h"
 #include "forwards.h"
-#include "mapping/combine.h"
-#include "mapping/identity.h"
-#include "mapping/insert_remove.h"
-#include "mapping/permutate.h"
-#include "mapping/slice.h"
-#include "mapping/split_merge.h"
+#include "view/combine.h"
+#include "view/identity.h"
+#include "view/insert_remove.h"
+#include "view/permutate.h"
+#include "view/slice.h"
+#include "view/split_merge.h"
 #include "types.h"
 
 namespace capybara {
 
 template<typename M, typename E>
-struct MappingCursor;
+struct ViewCursor;
 
 template<typename M, typename E>
-struct MappingExpr: Expr<MappingExpr<M, E>> {
-    friend MappingCursor<M, E>;
+struct ViewExpr: Expr<ViewExpr<M, E>> {
+    friend ViewCursor<M, E>;
     static constexpr size_t rank = M::new_rank;
-    using Base = Expr<MappingExpr<M, E>>;
+    using Base = Expr<ViewExpr<M, E>>;
     using Nested = typename Base::Nested;
 
-    MappingExpr(M mapping, Nested expr) :
+    ViewExpr(M mapping, Nested expr) :
         mapping_(std::move(mapping)),
         inner_(expr) {}
 
@@ -43,7 +43,7 @@ struct MappingExpr: Expr<MappingExpr<M, E>> {
         auto dim_delegate = [&](auto a) { return inner_.dim(a); };
         auto mapping = mapping_.cursor(advance_delegate, dim_delegate);
 
-        return MappingCursor<decltype(mapping), E>(
+        return ViewCursor<decltype(mapping), E>(
             std::move(cursor),
             std::move(mapping));
     }
@@ -54,12 +54,12 @@ struct MappingExpr: Expr<MappingExpr<M, E>> {
 };
 
 template<typename M, typename E>
-struct MappingCursor {
+struct ViewCursor {
     static constexpr size_t rank = M::new_rank;
     using Value = typename E::Value;
     using Cursor = typename E::Cursor;
 
-    MappingCursor(Cursor cursor, M mapping) :
+    ViewCursor(Cursor cursor, M mapping) :
         cursor_(std::move(cursor)),
         mapping_(std::move(mapping)) {}
 
@@ -81,8 +81,8 @@ struct MappingCursor {
 };
 
 template<typename E, typename M>
-MappingExpr<M, E> make_mapping_expr(const Expr<E>& expr, M mapping) {
-    return MappingExpr<M, E>(mapping, expr.self());
+ViewExpr<M, E> make_mapping_expr(const Expr<E>& expr, M mapping) {
+    return ViewExpr<M, E>(mapping, expr.self());
 }
 
 }  // namespace capybara

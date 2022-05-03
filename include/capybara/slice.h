@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mapping.h"
+#include "view.h"
 
 namespace capybara {
 
@@ -27,8 +27,8 @@ namespace sliceops {
 
     template<typename Start, typename Length, typename Stride = ConstDiff<1>>
     struct Range {
-        mapping::IndexFun<Start> start_;
-        mapping::IndexFun<Length> length_;
+        view::IndexFun<Start> start_;
+        view::IndexFun<Length> length_;
         Stride stride_;
     };
 
@@ -74,7 +74,7 @@ auto first(Length length) {
 
 template<typename Length>
 auto last(Length length) {
-    return range(mapping::IndexFun<mapping::Last> {} - length, length);
+    return range(view::IndexFun<view::Last> {} - length, length);
 }
 
 namespace detail {
@@ -109,7 +109,7 @@ namespace detail {
     struct IntoMapper<N, sliceops::All> {
         template<typename Axis>
         CAPYBARA_INLINE static auto into(Axis, sliceops::All) {
-            return mapping::Identity<N>();
+            return view::Identity<N>();
         }
     };
 
@@ -118,9 +118,9 @@ namespace detail {
         template<typename Axis>
         CAPYBARA_INLINE static auto
         into(Axis axis, sliceops::Reverse<Slice> slice) {
-            auto lhs = mapping::ReverseAxis<N, Axis>(axis);
+            auto lhs = view::ReverseAxis<N, Axis>(axis);
             auto rhs = IntoMapper<N, Slice>::into(slice.slice_);
-            return mapping::combine(lhs, rhs);
+            return view::combine(lhs, rhs);
         }
     };
 
@@ -129,11 +129,11 @@ namespace detail {
         template<typename Axis>
         CAPYBARA_INLINE static auto
         into(Axis axis, sliceops::Range<Start, Length, Stride> slice) {
-            auto start = mapping::make_index_fun(slice.start);
-            auto length = mapping::make_index_fun(slice.length);
+            auto start = view::make_index_fun(slice.start);
+            auto length = view::make_index_fun(slice.length);
             auto stride = convert_diff(slice.stride);
 
-            return mapping::SliceAxis<
+            return view::SliceAxis<
                 N,
                 Axis,
                 decltype(start),
@@ -146,7 +146,7 @@ namespace detail {
     struct IntoMapper<N, sliceops::Insert<Size>> {
         template<typename Axis>
         CAPYBARA_INLINE static auto into(Axis axis, sliceops::Insert<Size> m) {
-            return mapping::Insert<N, Axis, Size>(axis, m.size_);
+            return view::Insert<N, Axis, Size>(axis, m.size_);
         }
     };
 
@@ -154,7 +154,7 @@ namespace detail {
     struct IntoMapper<N, size_t> {
         template<typename Axis>
         CAPYBARA_INLINE static auto into(Axis axis, size_t idx) {
-            return mapping::Remove<N, Axis, size_t>(axis, idx);
+            return view::Remove<N, Axis, size_t>(axis, idx);
         }
     };
 
@@ -178,7 +178,7 @@ namespace detail {
     struct IntoMapper<N, ConstInt<size_t, I>> {
         template<typename Axis>
         CAPYBARA_INLINE static auto into(Axis axis, ConstInt<size_t, I> idx) {
-            return mapping::Remove<N, Axis, ConstInt<size_t, I>>(axis, idx);
+            return view::Remove<N, Axis, ConstInt<size_t, I>>(axis, idx);
         }
     };
 
@@ -189,7 +189,7 @@ namespace detail {
     struct IntoMultiMapper<I, N> {
         CAPYBARA_INLINE
         static auto call() {
-            return mapping::Identity<N> {};
+            return view::Identity<N> {};
         }
     };
 

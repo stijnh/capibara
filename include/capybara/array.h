@@ -22,10 +22,10 @@ struct ExprTraits<ArrayBase<T, D>> {
 };
 
 template<typename T, typename D>
-struct ArrayBase: View<ArrayBase<T, D>> {
+struct ArrayBase: ExprWrite<ArrayBase<T, D>> {
     friend ArrayCursor<T, D>;
 
-    using Base = View<ArrayBase<T, D>>;
+    using Base = ExprWrite<ArrayBase<T, D>>;
     using Base::rank;
     using typename Base::Cursor;
     using typename Base::Index;

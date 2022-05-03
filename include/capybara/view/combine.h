@@ -6,7 +6,7 @@
 
 namespace capybara {
 
-namespace mapping {
+namespace view {
     template<typename A, typename B>
     struct CombineCursor {
         CombineCursor(A a, B b) : left_(std::move(a)), right_(std::move(b)) {}
@@ -143,10 +143,10 @@ namespace mapping {
         using LD = typename std::decay<L>::type;
         using RD = typename std::decay<R>::type;
 
-        return mapping::Combine<LD, RD>::call(
+        return view::Combine<LD, RD>::call(
             std::forward<L>(left),
             std::forward<R>(right));
     }
-}  // namespace mapping
+}  // namespace view
 
 }  // namespace capybara

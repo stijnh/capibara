@@ -100,7 +100,7 @@ struct Expr<Derived, AccessMode::ReadOnly>:
     NdIndex shape() const {
         NdIndex result;
         for (size_t i = 0; i < rank; i++) {
-            result[i] = self().dim(i);
+            result[i] = dim(i);
         }
         return result;
     }
@@ -108,7 +108,7 @@ struct Expr<Derived, AccessMode::ReadOnly>:
     size_t size() const {
         size_t result = 1;
         for (size_t i = 0; i < rank; i++) {
-            result *= self().dim(i);
+            result *= dim(i);
         }
         return result;
     }
@@ -117,13 +117,18 @@ struct Expr<Derived, AccessMode::ReadOnly>:
         return size() == 0;
     }
 
+    template <typename Axis>
+    auto dim(Axis axis) const {
+        return convert_Size(self().dim_impl(into_axis<rank>(axis)));
+    }
+
     auto dims() const {
         return dims(axes::seq<rank> {});
     }
 
     template<size_t... I>
     auto dims(AxesOrder<I...>) const {
-        return capybara::dims(self().dim(Axis<I> {})...);
+        return capybara::dims(dim(Axis<I> {})...);
     }
 
     template<typename F>
@@ -145,7 +150,7 @@ struct Expr<Derived, AccessMode::ReadOnly>:
     auto swap_axes(AxisA raw_a, AxisB raw_b) const {
         auto a = into_axis<rank>(raw_a);
         auto b = into_axis<rank>(raw_b);
-        mapping::Swap<rank, decltype(a), decltype(b)> op {a, b};
+        view::Swap<rank, decltype(a), decltype(b)> op {a, b};
         return make_mapping_expr(self(), op);
     }
 
@@ -154,13 +159,13 @@ struct Expr<Derived, AccessMode::ReadOnly>:
     }
 
     auto transpose() const {
-        return make_mapping_expr(self(), mapping::Transpose<rank> {});
+        return make_mapping_expr(self(), view::Transpose<rank> {});
     }
 
     template<typename Axis>
     auto reverse_axis(Axis axis) const {
         auto axis_ = into_axis<rank>(axis);
-        auto dim = self().dim(axis_);
+        auto dim = this->dim(axis_);
         CAPYBARA_TODO("unimplemented");
     }
 

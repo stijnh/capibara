@@ -1,7 +1,7 @@
 #pragma once
 
 namespace capybara {
-namespace mapping {
+namespace view {
     template<size_t N>
     struct Identity {
         static constexpr size_t old_rank = N;
@@ -27,5 +27,5 @@ namespace mapping {
             return delegate(axis, steps);
         }
     };
-}  // namespace mapping
+}  // namespace view
 }  // namespace capybara
