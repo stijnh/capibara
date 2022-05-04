@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../axis.h"
+#include "../symbolic.h"
 
 namespace capybara {
 namespace view {
@@ -90,7 +91,7 @@ namespace view {
         static constexpr size_t new_rank = N + 1;
 
         Insert(Axis axis, Size size) : axis_(axis), size_(size) {
-            assert_rank<N>(axis);
+            assert_rank<N + 1>(axis);
         }
 
         template<typename F, typename Needle>
@@ -137,7 +138,7 @@ namespace view {
         static constexpr size_t old_rank = N;
         static constexpr size_t new_rank = N - 1;
 
-        Remove(Axis axis, Index index) : axis_(axis), index_(index) {
+        Remove(Axis axis, Symbolic<Index> index) : axis_(axis), index_(std::move(index)) {
             assert_rank<N>(axis);
         }
 
@@ -153,13 +154,13 @@ namespace view {
 
         template<typename F, typename D>
         RemoveCursor<N, Axis> cursor(F advance, D dim) {
-            advance(axis_, index_);
+            advance(axis_, index_.eval(dim(axis_)));
             return RemoveCursor<N, Axis>(axis_);
         }
 
       private:
         Axis axis_;
-        Index index_;
+        Symbolic<Index> index_;
     };
 }  // namespace view
 

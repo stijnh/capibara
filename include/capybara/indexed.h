@@ -22,7 +22,7 @@ struct IndexedExpr: Expr<IndexedExpr<D, I>> {
     IndexedExpr(D dims) : dims_(std::move(dims)) {}
 
     template<typename Axis>
-    CAPYBARA_INLINE auto dim(Axis axis) const {
+    CAPYBARA_INLINE auto dim_impl(Axis axis) const {
         return dims_[axis];
     }
 

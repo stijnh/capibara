@@ -117,9 +117,9 @@ struct Expr<Derived, AccessMode::ReadOnly>:
         return size() == 0;
     }
 
-    template <typename Axis>
+    template<typename Axis>
     auto dim(Axis axis) const {
-        return convert_Size(self().dim_impl(into_axis<rank>(axis)));
+        return convert_size(self().dim_impl(into_axis<rank>(axis)));
     }
 
     auto dims() const {
@@ -151,7 +151,7 @@ struct Expr<Derived, AccessMode::ReadOnly>:
         auto a = into_axis<rank>(raw_a);
         auto b = into_axis<rank>(raw_b);
         view::Swap<rank, decltype(a), decltype(b)> op {a, b};
-        return make_mapping_expr(self(), op);
+        return make_view_expr(self(), op);
     }
 
     auto diagonal() const {
@@ -159,7 +159,7 @@ struct Expr<Derived, AccessMode::ReadOnly>:
     }
 
     auto transpose() const {
-        return make_mapping_expr(self(), view::Transpose<rank> {});
+        return make_view_expr(self(), view::Transpose<rank> {});
     }
 
     template<typename Axis>

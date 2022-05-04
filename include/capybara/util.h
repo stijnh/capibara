@@ -1,5 +1,6 @@
 #pragma once
 #include <limits>
+#include <type_traits>
 
 #include "defines.h"
 
@@ -8,32 +9,32 @@ namespace detail {
     template<typename L, typename R, typename = void>
     struct Compare {
         CAPYBARA_INLINE
-        constexpr static bool lt(L left, R right) {
+        constexpr static bool lt(const L& left, const R& right) {
             return left < right;
         }
 
         CAPYBARA_INLINE
-        constexpr static bool gt(L left, R right) {
+        constexpr static bool gt(const L& left, const R& right) {
             return left > right;
         }
 
         CAPYBARA_INLINE
-        constexpr static bool eq(L left, R right) {
+        constexpr static bool eq(const L& left, const R& right) {
             return left == right;
         }
 
         CAPYBARA_INLINE
-        constexpr static bool ne(L left, R right) {
+        constexpr static bool ne(const L& left, const R& right) {
             return left != right;
         }
 
         CAPYBARA_INLINE
-        constexpr static bool le(L left, R right) {
+        constexpr static bool le(const L& left, const R& right) {
             return left <= right;
         }
 
         CAPYBARA_INLINE
-        constexpr static bool ge(L left, R right) {
+        constexpr static bool ge(const L& left, const R& right) {
             return left >= right;
         }
     };
@@ -50,33 +51,33 @@ namespace detail {
             typename std::make_unsigned<typename std::decay<L>::type>::type;
 
         CAPYBARA_INLINE
-        constexpr static bool lt(L left, R right) noexcept {
+        constexpr static bool lt(const L& left, const R& right) noexcept {
             return left < 0 || (UL(left) < right);
         }
 
         CAPYBARA_INLINE
-        constexpr static bool eq(L left, R right) noexcept {
+        constexpr static bool eq(const L& left, const R& right) noexcept {
             return (left >= 0) && (UL(left) == right);
         }
 
         CAPYBARA_INLINE
-        constexpr static bool gt(L left, R right) noexcept {
-            return Self::lt(right, left);
+        constexpr static bool le(const L& left, const R& right) noexcept {
+            return left < 0 || (UL(left) <= right);
         }
 
         CAPYBARA_INLINE
-        constexpr static bool le(L left, R right) noexcept {
-            return !Self::gt(left, right);
+        constexpr static bool gt(const L& left, const R& right) noexcept {
+            return !Self::le(left, right);
         }
 
         CAPYBARA_INLINE
-        constexpr static bool ne(L left, R right) noexcept {
-            return !Self::eq(right, left);
+        constexpr static bool ne(const L& left, const R& right) noexcept {
+            return !Self::eq(left, right);
         }
 
         CAPYBARA_INLINE
-        constexpr static bool ge(L left, R right) noexcept {
-            return !Self::lt(right, left);
+        constexpr static bool ge(const L& left, const R& right) noexcept {
+            return !Self::lt(left, right);
         }
     };
 
@@ -90,32 +91,32 @@ namespace detail {
         using Reverse = Compare<R, L>;
 
         CAPYBARA_INLINE
-        constexpr static bool eq(L left, R right) noexcept {
+        constexpr static bool eq(const L& left, const R& right) noexcept {
             return Reverse::eq(right, left);
         }
 
         CAPYBARA_INLINE
-        constexpr static bool ne(L left, R right) noexcept {
+        constexpr static bool ne(const L& left, const R& right) noexcept {
             return Reverse::ne(right, left);
         }
 
         CAPYBARA_INLINE
-        constexpr static bool lt(L left, R right) noexcept {
+        constexpr static bool lt(const L& left, const R& right) noexcept {
             return Reverse::gt(right, left);
         }
 
         CAPYBARA_INLINE
-        constexpr static bool gt(L left, R right) noexcept {
+        constexpr static bool gt(const L& left, const R& right) noexcept {
             return Reverse::lt(right, left);
         }
 
         CAPYBARA_INLINE
-        constexpr static bool le(L left, R right) noexcept {
+        constexpr static bool le(const L& left, const R& right) noexcept {
             return Reverse::ge(right, left);
         }
 
         CAPYBARA_INLINE
-        constexpr static bool ge(L left, R right) noexcept {
+        constexpr static bool ge(const L& left, const R& right) noexcept {
             return Reverse::le(right, left);
         }
     };
@@ -164,6 +165,60 @@ CAPYBARA_INLINE constexpr bool cmp_bounds(const L& value) {
         value,
         std::numeric_limits<R>::min(),
         std::numeric_limits<R>::max());
+}
+
+namespace detail {
+    template<typename L, typename R, typename O, typename = void>
+    struct Arithmetic {
+        static constexpr O add(const L& left, const R& right) {
+            return left + right;
+        }
+
+        static constexpr O sub(const L& left, const R& right) {
+            return left - right;
+        }
+
+        static constexpr O mul(const L& left, const R& right) {
+            return left * right;
+        }
+
+        static constexpr O div(const L& left, const R& right) {
+            return left / right;
+        }
+    };
+
+}  // namespace detail
+
+template<
+    typename L,
+    typename R,
+    typename O = decltype(std::declval<L>() + std::declval<R>())>
+CAPYBARA_INLINE constexpr O safe_add(const L& left, const R& right) {
+    return detail::Arithmetic<L, R, O>::add(left, right);
+}
+
+template<
+    typename L,
+    typename R,
+    typename O = decltype(std::declval<L>() - std::declval<R>())>
+CAPYBARA_INLINE constexpr O safe_sub(const L& left, const R& right) {
+    return detail::Arithmetic<L, R, O>::sub(left, right);
+}
+
+template<
+    typename L,
+    typename R,
+    typename O = decltype(std::declval<L>() * std::declval<R>())>
+CAPYBARA_INLINE constexpr O safe_mul(const L& left, const R& right) {
+    return detail::Arithmetic<L, R, O>::mul(left, right);
+}
+
+template<
+    typename L,
+    typename R,
+    typename O = decltype(std::declval<L>() / std::declval<R>())>
+CAPYBARA_INLINE constexpr O safe_div(const L& left, const R& right) {
+    return detail::Arithmetic<L, R, O>::div(left, right);
 }
 
 }  // namespace capybara

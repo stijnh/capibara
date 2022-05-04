@@ -73,7 +73,7 @@ struct ArrayBase: ExprWrite<ArrayBase<T, D>> {
     }
 
     template<typename Axis>
-    auto dim(Axis axis) const {
+    auto dim_impl(Axis axis) const {
         return dims_[axis];
     }
 

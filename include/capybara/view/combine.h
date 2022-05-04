@@ -75,6 +75,8 @@ namespace view {
     template<typename T, typename = void>
     struct IsIdentity: ConstFalse {};
 
+    template <size_t N>
+    struct IsIdentity<Identity<N>>: ConstTrue {};
     template<>
     struct IsIdentity<Transpose<0>>: ConstTrue {};
     template<>
@@ -143,7 +145,7 @@ namespace view {
         using LD = typename std::decay<L>::type;
         using RD = typename std::decay<R>::type;
 
-        return view::Combine<LD, RD>::call(
+        return detail::CombineHelper<LD, RD>::call(
             std::forward<L>(left),
             std::forward<R>(right));
     }

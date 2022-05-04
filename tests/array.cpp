@@ -1,17 +1,22 @@
 #include "capybara/array.h"
 
-#include "capybara/binary.h"
-#include "capybara/eval.h"
-#include "capybara/for_each.h"
-#include "capybara/indexed.h"
-#include "capybara/nullary.h"
-#include "capybara/unary.h"
 #include "catch.hpp"
 
 TEST_CASE("array") {
     using namespace capybara;
 
-    for_each(arange(10, 10), [](auto x) {
-        std::cout << x[0] << "," << x[1] << std::endl;
-    });
+    size_t n = 10;
+    Array1<int> x(n);
+
+    CHECK(x(all).dims() == dims(n));
+    CHECK(x(reverse).dims() == dims(n));
+    CHECK(x(first(3)).dims() == dims(3));
+    CHECK(x(last(3)).dims() == dims(3));
+    CHECK(x(range(3, 6)).dims() == dims(6));
+    CHECK(x(newaxis).dims() == dims(1, n));
+    CHECK(x(newaxis(5)).dims() == dims(5, n));
+    CHECK(x(all, newaxis).dims() == dims(n, 1));
+    CHECK(x(all, newaxis(5)).dims() == dims(n, 5));
+    CHECK(x(1).dims() == dims());
+    CHECK(x(const_int<size_t, 5>).dims() == dims());
 }

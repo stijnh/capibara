@@ -38,7 +38,7 @@ struct BinaryExpr: Expr<BinaryExpr<F, L, R>> {
         rhs_(std::move(rhs)) {}
 
     template<typename Axis>
-    CAPYBARA_INLINE auto dim(Axis i) const {
+    CAPYBARA_INLINE auto dim_impl(Axis i) const {
         return lhs_.dim(i);
     }
 

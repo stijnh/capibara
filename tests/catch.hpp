@@ -4254,7 +4254,7 @@ namespace Generators {
 
     template <typename T, typename U, typename Func>
     class MapGenerator : public IGenerator<T> {
-        // TBD: provide static assert for mapping function, for friendly error message
+        // TBD: provide static assert for view function, for friendly error message
         GeneratorWrapper<U> m_generator;
         Func m_function;
         // To avoid returning dangling reference, we have to save the values
@@ -10797,7 +10797,7 @@ namespace Catch {
 
     struct SignalDefs { DWORD id; const char* name; };
 
-    // There is no 1-1 mapping between signals and windows exceptions.
+    // There is no 1-1 view between signals and windows exceptions.
     // Windows can easily distinguish between SO and SigSegV,
     // but SigInt, SigTerm, etc are handled differently.
     static SignalDefs signalDefs[] = {

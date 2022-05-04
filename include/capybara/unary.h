@@ -29,7 +29,7 @@ struct UnaryExpr: Expr<UnaryExpr<F, E>> {
     UnaryExpr(const E& inner) : op_({}), inner_(inner) {}
 
     template<typename Axis>
-    CAPYBARA_INLINE auto dim(Axis i) const {
+    CAPYBARA_INLINE auto dim_impl(Axis i) const {
         return inner_.dim(i);
     }
 

@@ -27,8 +27,8 @@ namespace sliceops {
 
     template<typename Start, typename Length, typename Stride = ConstDiff<1>>
     struct Range {
-        view::IndexFun<Start> start_;
-        view::IndexFun<Length> length_;
+        Symbolic<Start> start_;
+        Symbolic<Length> length_;
         Stride stride_;
     };
 
@@ -59,7 +59,9 @@ static constexpr sliceops::Reverse<sliceops::All> reverse = {};
 
 template<typename Start, typename Length, typename Stride>
 auto range(Start start, Length length, Stride stride) {
-    return sliceops::Range<Start, Length, Stride> {start, length, stride};
+    auto start_ = make_index_fun(start);
+    auto length_ = make_index_fun(length);
+    return sliceops::Range<typename decltype(start_)::function_type, typename decltype(length_)::function_type, Stride> {start_, length_, stride};
 }
 
 template<typename Start, typename Length>
@@ -74,7 +76,7 @@ auto first(Length length) {
 
 template<typename Length>
 auto last(Length length) {
-    return range(view::IndexFun<view::Last> {} - length, length);
+    return range(Symbolic<Last> {} - length, length);
 }
 
 namespace detail {
@@ -119,7 +121,7 @@ namespace detail {
         CAPYBARA_INLINE static auto
         into(Axis axis, sliceops::Reverse<Slice> slice) {
             auto lhs = view::ReverseAxis<N, Axis>(axis);
-            auto rhs = IntoMapper<N, Slice>::into(slice.slice_);
+            auto rhs = IntoMapper<N, Slice>::into(axis, slice.slice_);
             return view::combine(lhs, rhs);
         }
     };
@@ -129,15 +131,15 @@ namespace detail {
         template<typename Axis>
         CAPYBARA_INLINE static auto
         into(Axis axis, sliceops::Range<Start, Length, Stride> slice) {
-            auto start = view::make_index_fun(slice.start);
-            auto length = view::make_index_fun(slice.length);
-            auto stride = convert_diff(slice.stride);
+            auto start = make_index_fun(slice.start_);
+            auto length = make_index_fun(slice.length_);
+            auto stride = convert_diff(slice.stride_);
 
             return view::SliceAxis<
                 N,
                 Axis,
-                decltype(start),
-                decltype(length),
+                typename decltype(start)::function_type,
+                typename decltype(length)::function_type,
                 decltype(stride)>(axis, start, length, stride);
         }
     };
@@ -150,11 +152,20 @@ namespace detail {
         }
     };
 
+    template<size_t N, typename F>
+    struct IntoMapper<N, Symbolic<F>> {
+        template<typename Axis>
+        CAPYBARA_INLINE static auto into(Axis axis, Symbolic<F> idx) {
+            return view::Remove<N, Axis, F>(axis, make_index_fun(idx));
+        }
+    };
+
     template<size_t N>
     struct IntoMapper<N, size_t> {
         template<typename Axis>
         CAPYBARA_INLINE static auto into(Axis axis, size_t idx) {
-            return view::Remove<N, Axis, size_t>(axis, idx);
+            auto f = make_index_fun(idx);
+            return view::Remove<N, Axis, typename decltype(f)::function_type>(axis, f);
         }
     };
 
@@ -178,7 +189,8 @@ namespace detail {
     struct IntoMapper<N, ConstInt<size_t, I>> {
         template<typename Axis>
         CAPYBARA_INLINE static auto into(Axis axis, ConstInt<size_t, I> idx) {
-            return view::Remove<N, Axis, ConstInt<size_t, I>>(axis, idx);
+            auto f = make_index_fun(ConstInt<size_t, I>{});
+            return view::Remove<N, Axis, typename decltype(f)::function_type>(axis, f);
         }
     };
 
@@ -204,10 +216,10 @@ namespace detail {
             auto lhs = IntoMapper<N, Slice>::into(Axis<I> {}, slice);
 
             static constexpr size_t M = decltype(lhs)::new_rank;
-            auto rhs = IntoMultiMapper<I + 1 + (M - N), M, Slices...> {}(
+            auto rhs = IntoMultiMapper<I + 1 + M - N, M, Slices...>::call(
                 std::forward<Slices>(slices)...);
 
-            return mapping_combine(lhs, rhs);
+            return view::combine(lhs, rhs);
         }
     };
 }  // namespace detail
@@ -219,7 +231,7 @@ CAPYBARA_INLINE auto make_slice_expr(const Expr& expr, Axis axis, Slice slice) {
         axis_,
         expr.dim(axis_),
         slice);
-    return make_mapping_expr(op, expr);
+    return make_view_expr(expr, op);
 }
 
 template<typename Expr, typename... Slices>
@@ -228,7 +240,7 @@ CAPYBARA_INLINE auto make_slices_expr(const Expr& expr, Slices... slices) {
         0,
         Expr::rank,
         typename std::decay<Slices>::type...>::call(slices...);
-    return make_mapping_expr(op, expr);
+    return make_view_expr(expr, op);
 }
 
 }  // namespace capybara

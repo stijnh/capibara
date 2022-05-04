@@ -34,7 +34,7 @@ struct ReduceExpr: Expr<ReduceExpr<R, E, N>> {
         inner_(inner) {}
 
     template<typename Axis>
-    CAPYBARA_INLINE auto dim(Axis i) const {
+    CAPYBARA_INLINE auto dim_impl(Axis i) const {
         return inner_.dim(i);
     }
 

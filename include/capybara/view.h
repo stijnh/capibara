@@ -3,32 +3,45 @@
 #include "defines.h"
 #include "expr.h"
 #include "forwards.h"
+#include "types.h"
 #include "view/combine.h"
 #include "view/identity.h"
 #include "view/insert_remove.h"
 #include "view/permutate.h"
 #include "view/slice.h"
 #include "view/split_merge.h"
-#include "types.h"
 
 namespace capybara {
 
 template<typename M, typename E>
+struct ViewExpr;
+
+template<typename M, typename E>
 struct ViewCursor;
+
+template <typename M, typename E>
+struct ExprTraits<ViewExpr<M, E>> {
+    static constexpr size_t rank = M::new_rank;
+    using Value = typename ExprTraits<E>::Value;
+    using Index = typename ExprTraits<E>::Index;
+    using Nested = ViewExpr<M, E>;
+    using Cursor = ViewCursor<M, E>;
+};
+
 
 template<typename M, typename E>
 struct ViewExpr: Expr<ViewExpr<M, E>> {
     friend ViewCursor<M, E>;
     static constexpr size_t rank = M::new_rank;
     using Base = Expr<ViewExpr<M, E>>;
-    using Nested = typename Base::Nested;
+    using Nested = typename ExprTraits<E>::Nested;
 
-    ViewExpr(M mapping, Nested expr) :
+    ViewExpr(M mapping, const E& expr) :
         mapping_(std::move(mapping)),
         inner_(expr) {}
 
     template<typename Axis>
-    CAPYBARA_INLINE auto dim(Axis axis) const {
+    CAPYBARA_INLINE auto dim_impl(Axis axis) const {
         auto axis_ = into_axis<rank>(axis);
         auto delegate = [&](auto a) { return inner_.dim(a); };
         return mapping_.dim(delegate, axis_);
@@ -81,7 +94,7 @@ struct ViewCursor {
 };
 
 template<typename E, typename M>
-ViewExpr<M, E> make_mapping_expr(const Expr<E>& expr, M mapping) {
+ViewExpr<M, E> make_view_expr(const Expr<E>& expr, M mapping) {
     return ViewExpr<M, E>(mapping, expr.self());
 }
 

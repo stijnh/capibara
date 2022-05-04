@@ -23,7 +23,7 @@ struct NullaryExpr: Expr<NullaryExpr<F, D>> {
     NullaryExpr(F fun, D dims) : fun_(fun), dims_(dims) {}
 
     template<typename Axis>
-    auto dim(Axis axis) const {
+    auto dim_impl(Axis axis) const {
         return dims_[axis];
     }
 

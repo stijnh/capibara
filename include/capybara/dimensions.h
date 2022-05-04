@@ -6,7 +6,7 @@
 #include <utility>
 
 #include "const_int.h"
-#include "types.h"
+#include "axis.h"
 
 namespace capybara {
 
@@ -414,7 +414,7 @@ struct Dimensions<> {
     }
 
     template<typename Axis>
-    auto operator[](Axis axis) const {
+    size_t operator[](Axis axis) const {
         throw std::runtime_error("index out of bounds");
     }
 
@@ -458,8 +458,10 @@ std::ostream& operator<<(std::ostream& os, const Dimensions<Ts...>& dims) {
     os << "(";
 
     for (size_t i = 0; i < dims.size(); i++) {
-        if (i != 0)
+        if (i != 0) {
             os << ", ";
+        }
+
         os << dims[i];
     }
 
