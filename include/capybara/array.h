@@ -1,13 +1,43 @@
 #pragma once
 
-#include <complex>
 #include <memory>
 
+#include "axis.h"
 #include "dimensions.h"
 #include "expr.h"
 #include "forwards.h"
 
 namespace capybara {
+
+template<typename T, size_t N>
+using Array = ArrayBase<T, DimensionsN<N>>;
+
+template<typename T, size_t... sizes>
+using FixedArray = ArrayBase<T, Dimensions<ConstIndex<sizes>...>>;
+
+template <typename T, size_t I>
+struct ExprStaticDimension;
+
+template <typename E, typename Index, typename = void>
+struct DimHelper;
+
+template <typename E, size_t I>
+struct DimHelper<E, ConstIndex<I>>: ExprStaticDimension<E, I> {
+    static length_t call(const E& expr, ConstIndex<I>) {
+        return ExprStaticDimension<E, I>::value;
+    }
+};
+
+template <typename E>
+struct DimHelper<E, DynAxis<E::rank>> {
+    static length_t call(const E& expr, DynAxis<E::rank> index) {
+        return expr.dim_impl(index);
+    }
+};
+
+
+template<typename T, typename D>
+struct ArrayRef;
 
 template<typename T, typename D>
 struct ArrayCursor;
@@ -15,61 +45,39 @@ struct ArrayCursor;
 template<typename T, typename D>
 struct ExprTraits<ArrayBase<T, D>> {
     static constexpr size_t rank = D::rank;
+    static constexpr AccessMode mode =
+        std::is_const<T>::value ? AccessMode::ReadOnly : AccessMode::ReadWrite;
+    static constexpr bool is_view = true;
     using Value = T;
-    using Index = size_t;
-    using Cursor = ArrayCursor<T, D>;
-    using Nested = const ArrayBase<T, D>&;
+    using Nested = ArrayRef<T, D>;
+    using NestedConst = ArrayRef<const T, D>;
 };
 
 template<typename T, typename D>
-struct ArrayBase: ExprWrite<ArrayBase<T, D>> {
-    friend ArrayCursor<T, D>;
+struct ArrayBase: Expr<ArrayBase<T, D>> {
+    static constexpr size_t rank = D::rank;
+    using Base = Expr<ArrayBase<T, D>>;
+    using ExprAssign<ArrayBase<T, D>>::operator=;
 
-    using Base = ExprWrite<ArrayBase<T, D>>;
-    using Base::rank;
-    using typename Base::Cursor;
-    using typename Base::Index;
-    using typename Base::NdIndex;
-    using typename Base::Value;
-    using stride_type = ptrdiff_t;
-    using dims_type = D;
-
-    using Base::operator=;
-
-    ArrayBase(dims_type dims) : dims_(std::move(dims)) {
-        std::cout << this->size() << std::endl;
+    ArrayBase(D dims) : dims_(dims) {
         base_.reset(new T[this->size()]);
     }
 
-    ArrayBase() : ArrayBase(dims_type {}) {}
-
-    size_t linearize_index(NdIndex idx) const {
-        size_t offset = 0;
-
-        for (size_t i = 0; i < rank; i++) {
-            offset = offset * dims_[i] + idx[i];
-        }
-
-        return offset;
-    }
-
-    Value& access(NdIndex idx) {
-        return base_[linearize_index(idx)];
-    }
-
-    const Value& access(NdIndex idx) const {
-        return base_[linearize_index(idx)];
+    ArrayBase& operator=(const ArrayBase& input) {
+        this->assign(input);
+        return *this;
     }
 
     template<typename Axis>
-    auto stride(Axis i) const {
-        stride_type stride = 1;
+    stride_t stride(Axis axis) const {
+        auto axis_ = into_axis<rank>(axis);
+        stride_t result = 1;
 
-        for (size_t j = rank; j > i + 1; j--) {
-            stride *= dims_[j - 1];
+        for (size_t i = axis_ + 1; i < rank; i++) {
+            result *= dims_[i];
         }
 
-        return stride;
+        return result;
     }
 
     template<typename Axis>
@@ -85,123 +93,141 @@ struct ArrayBase: ExprWrite<ArrayBase<T, D>> {
         return base_.get();
     }
 
+    template<typename Device>
+    ArrayCursor<T, D> cursor_impl(Device device) {
+        return this->nested().cursor_impl(device);
+    }
+
+    template<typename Device>
+    ArrayCursor<const T, D> cursor_impl(Device device) const {
+        return this->nested().cursor_impl(device);
+    }
+
   private:
     std::unique_ptr<T[]> base_;
-    dims_type dims_;
+    D dims_;
 };
 
-template<typename T, size_t... Dims>
-using Array = ArrayBase<T, DimensionsDyn<Dims...>>;
+template<typename T, typename D>
+struct ExprTraits<ArrayRef<T, D>>: ExprTraits<ArrayBase<T, D>> {};
 
-template<typename T, size_t N>
-using ArrayN = ArrayBase<T, DimensionsN<N>>;
+template<typename T, typename D>
+struct ArrayRef: Expr<ArrayRef<T, D>> {
+    ArrayRef(const ArrayRef<T, D>&) = default;
+    ArrayRef(ArrayBase<T, D>& parent) : parent_(parent) {}
 
-template<typename T>
-using Array0 = ArrayN<T, 0>;
-template<typename T>
-using Array1 = ArrayN<T, 1>;
-template<typename T>
-using Array2 = ArrayN<T, 2>;
-template<typename T>
-using Array3 = ArrayN<T, 3>;
-template<typename T>
-using Array4 = ArrayN<T, 4>;
-template<typename T>
-using Array5 = ArrayN<T, 5>;
-template<typename T>
-using Array6 = ArrayN<T, 6>;
+    ArrayBase<T, D>& parent() const {
+        return parent_;
+    }
 
-#define IMPL_ARRAY_FOR_TYPE(short_name, long_name)       \
-    template<size_t... Dims>                             \
-    using Array##short_name = Array<long_name, Dims...>; \
-    using Array0##short_name = Array0<long_name>;        \
-    using Array1##short_name = Array1<long_name>;        \
-    using Array2##short_name = Array2<long_name>;        \
-    using Array3##short_name = Array3<long_name>;        \
-    using Array4##short_name = Array4<long_name>;        \
-    using Array5##short_name = Array5<long_name>;        \
-    using Array6##short_name = Array6<long_name>;
+    T* data() {
+        return parent_.data();
+    }
 
-IMPL_ARRAY_FOR_TYPE(i, int)
-IMPL_ARRAY_FOR_TYPE(f, float)
-IMPL_ARRAY_FOR_TYPE(d, double)
-IMPL_ARRAY_FOR_TYPE(l, long long)
-IMPL_ARRAY_FOR_TYPE(b, bool)
-IMPL_ARRAY_FOR_TYPE(c, std::complex<double>)
-IMPL_ARRAY_FOR_TYPE(cf, std::complex<float>)
-#undef IMPL_ARRAY_FOR_TYPE
-
-namespace array_helpers {
-    template<typename Axis, size_t N>
-    struct Stride {
-        using return_type = ptrdiff_t;
-
-        template<typename D>
-        static return_type call(Axis axis, const D& dims) {
-            ptrdiff_t stride = 1;
-
-            for (size_t i = N - 1; i > axis; i--) {
-                stride *= dims[i];
-            }
-
-            return stride;
-        }
-    };
-
-    template<size_t N>
-    struct Stride<Axis<N - 1>, N> {
-        using return_type = ConstDiff<1>;
-
-        template<typename D>
-        static return_type call(Axis<N - 1>, const D&) {
-            return {};
-        }
-    };
-
-    template<size_t K, size_t N>
-    struct Stride<Axis<K>, N> {
-        template<typename D>
-        static auto call(Axis<K>, const D& dims) {
-            return dims[Axis<K + 1> {}]
-                * Stride<Axis<K + 1>, N>::call(Axis<K + 1> {}, dims);
-        }
-    };
+    const T* data() const {
+        return parent_.data();
+    }
 
     template<typename Axis>
-    struct Stride<Axis, 1> {
-        template<typename D>
-        static auto call(Axis, const D& dims) {
-            return dims[axis0];
-        }
-    };
-}  // namespace array_helpers
+    auto stride_impl(Axis axis) const {
+        return parent_.stride_impl(axis);
+    }
+
+    template<typename Axis>
+    auto dim_impl(Axis axis) const {
+        return parent_.dim_impl(axis);
+    }
+
+    template<typename Device>
+    ArrayCursor<T, D> cursor_impl(Device device) const {
+        return ArrayCursor<T, D>(parent_);
+    }
+
+  private:
+    ArrayBase<T, D>& parent_;
+};
+
+template<typename T, typename D>
+struct ExprTraits<ArrayRef<const T, D>>: ExprTraits<ArrayBase<T, D>> {
+    static constexpr AccessMode mode = AccessMode::ReadOnly;
+    using Nested = ArrayRef<const T, D>;
+};
+
+template<typename T, typename D>
+struct ArrayRef<const T, D>: Expr<ArrayRef<const T, D>> {
+    ArrayRef(const ArrayBase<T, D>& parent) : parent_(parent) {}
+    ArrayRef(const ArrayRef<const T, D>&) = default;
+    ArrayRef(const ArrayRef<T, D>& d) : parent_(d.parent()) {}
+
+    const ArrayBase<T, D>& parent() const {
+        return parent_;
+    }
+
+    const T* data() const {
+        return parent_.data();
+    }
+
+    template<typename Axis>
+    auto stride_impl(Axis axis) const {
+        return parent_.stride_impl(axis);
+    }
+
+    template<typename Axis>
+    auto dim_impl(Axis axis) const {
+        return parent_.dim_impl(axis);
+    }
+
+    template<typename Device>
+    ArrayCursor<const T, D> cursor_impl(Device device) const {
+        return ArrayCursor<const T, D>(parent_);
+    }
+
+  private:
+    const ArrayBase<T, D>& parent_;
+};
 
 template<typename T, typename D>
 struct ArrayCursor {
-    using Value = T;
-    static constexpr size_t rank = D::rank;
+    ArrayCursor(ArrayBase<T, D>& parent) :
+        parent_(parent),
+        ptr_(parent.data()) {}
 
-    ArrayCursor(const ArrayBase<T, D>& inner) :
-        inner_(inner),
-        cursor_(inner.base_.get()) {}
-
-    template<typename Axis>
-    auto stride(Axis axis) {
-        return array_helpers::Stride<Axis, rank>(axis, inner_.dims_);
+    template<typename Axis, typename Steps>
+    void advance(Axis axis, Steps steps) {
+        ptr_ += parent_.stride(axis) * steps;
     }
 
-    template<typename Axis, typename Diff>
-    void advance(Axis axis, Diff steps) {
-        cursor_ += stride(axis) * steps;
+    T evaluate() {
+        return *ptr_;
     }
 
-    Value eval() const {
-        return *cursor_;
+    void store(T item) {
+        *ptr_ = std::move(item);
     }
 
   private:
-    Value* cursor_;
-    const ArrayBase<T, D>& inner_;
+    const ArrayBase<T, D>& parent_;
+    T* ptr_;
+};
+
+template<typename T, typename D>
+struct ArrayCursor<const T, D> {
+    ArrayCursor(const ArrayBase<T, D>& parent) :
+        parent_(parent),
+        ptr_(parent.data()) {}
+
+    template<typename Axis, typename Steps>
+    void advance(Axis axis, Steps steps) {
+        ptr_ += parent_.stride(axis) * steps;
+    }
+
+    T evaluate() {
+        return *ptr_;
+    }
+
+  private:
+    const ArrayBase<T, D>& parent_;
+    const T* ptr_;
 };
 
 }  // namespace capybara

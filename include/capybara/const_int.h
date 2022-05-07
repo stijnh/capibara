@@ -1,109 +1,112 @@
 #pragma once
 
-#include <limits>
+#include <type_traits>
 
-#include "util.h"
+#include "defines.h"
+#include "types.h"
 
 namespace capybara {
 
-template<typename T, T Value>
-struct ConstInt: std::integral_constant<T, Value> {
-    operator T() const {
-        return Value;
+template<typename T, T value>
+struct ConstInt: std::integral_constant<T, value> {
+    constexpr operator T() const {
+        return value;
+    }
+
+    static T get() {
+        return value;
+    }
+
+    static void set(T input) {
+        if (value != input) {
+            throw std::runtime_error("cannot set constant value");
+        }
+    }
+
+    ConstInt& operator=(T input) {
+        ConstInt::set(input);
+        return *this;
     }
 };
 
-template<typename T, T Value>
-ConstInt<T, -Value> operator-(ConstInt<T, Value>) {
-    return {};
-}
+#define CAPYBARA_CONST_INT_UNARY_OP(op, return_type)                  \
+    template<typename T, T value>                                     \
+    ConstInt<return_type, op value> operator op(ConstInt<T, value>) { \
+        return {};                                                    \
+    }
 
-template<typename T, T Value>
-ConstInt<T, +Value> operator+(ConstInt<T, Value>) {
-    return {};
-}
+CAPYBARA_CONST_INT_UNARY_OP(+, T)
+CAPYBARA_CONST_INT_UNARY_OP(-, T)
+CAPYBARA_CONST_INT_UNARY_OP(!, bool)
+#undef CAPYBARA_CONST_INT_UNARY_OP
 
-#define IMPL_BINARY_OPERATOR(op, return_type)           \
-    template<typename T, T Left, T Right>               \
-    ConstInt<return_type, (Left op Right)> operator op( \
-        ConstInt<T, Left>,                              \
-        ConstInt<T, Right>) {                           \
+#define CAPYBARA_CONST_INT_BINARY_OP(op, return_type)   \
+    template<typename T, T left, T right>               \
+    ConstInt<return_type, (left op right)> operator op( \
+        ConstInt<T, left>,                              \
+        ConstInt<T, right>) {                           \
         return {};                                      \
     }
 
-IMPL_BINARY_OPERATOR(+, T)
-IMPL_BINARY_OPERATOR(-, T)
-IMPL_BINARY_OPERATOR(*, T)
-IMPL_BINARY_OPERATOR(/, T)
-IMPL_BINARY_OPERATOR(%, T)
-IMPL_BINARY_OPERATOR(==, bool)
-IMPL_BINARY_OPERATOR(!=, bool)
-IMPL_BINARY_OPERATOR(<, bool)
-IMPL_BINARY_OPERATOR(>, bool)
-IMPL_BINARY_OPERATOR(<=, bool)
-IMPL_BINARY_OPERATOR(>=, bool)
-#undef IMPL_BINARY_OPERATOR
+CAPYBARA_CONST_INT_BINARY_OP(+, T)
+CAPYBARA_CONST_INT_BINARY_OP(-, T)
+CAPYBARA_CONST_INT_BINARY_OP(*, T)
+CAPYBARA_CONST_INT_BINARY_OP(/, T)
+CAPYBARA_CONST_INT_BINARY_OP(%, T)
+CAPYBARA_CONST_INT_BINARY_OP(==, bool)
+CAPYBARA_CONST_INT_BINARY_OP(!=, bool)
+CAPYBARA_CONST_INT_BINARY_OP(<, bool)
+CAPYBARA_CONST_INT_BINARY_OP(>, bool)
+CAPYBARA_CONST_INT_BINARY_OP(<=, bool)
+CAPYBARA_CONST_INT_BINARY_OP(>=, bool)
+#undef CAPYBARA_CONST_INT_BINARY_OP
 
-template<typename T>
-CAPYBARA_INLINE constexpr T convert_integer(T value) {
-    return value;
+template<stride_t I>
+using ConstStride = ConstInt<stride_t, I>;
+
+template<stride_t I>
+static constexpr ConstStride<I> const_stride {};
+
+CAPYBARA_INLINE constexpr stride_t into_stride(stride_t i) {
+    return i;
 }
 
-template<typename R, typename T, T Value>
-CAPYBARA_INLINE constexpr ConstInt<R, (T)Value>
-convert_integer(ConstInt<T, Value>) {
-    static_assert(cmp_bounds<R>(Value), "value is out of bounds");
+template<stride_t I>
+CAPYBARA_INLINE constexpr ConstStride<I>
+into_stride(const std::integral_constant<stride_t, I>&) {
     return {};
 }
 
-template<typename R, typename T, T Value>
-CAPYBARA_INLINE constexpr ConstInt<R, (T)Value>
-convert_integer(std::integral_constant<T, Value>) {
-    return convert_integer<R>(ConstInt<T, Value> {});
+template<index_t I>
+using ConstIndex = ConstInt<index_t, I>;
+
+template<index_t I>
+static constexpr ConstIndex<I> const_index {};
+
+CAPYBARA_INLINE constexpr index_t into_index(index_t i) {
+    return i;
 }
 
-template<typename T, T N>
-static constexpr ConstInt<T, N> const_int = {};
-
-template<size_t N>
-using ConstSize = ConstInt<size_t, N>;
-
-template<size_t N>
-static constexpr ConstSize<N> S = {};
-static constexpr ConstSize<0> S0 = {};
-static constexpr ConstSize<1> S1 = {};
-static constexpr ConstSize<2> S2 = {};
-
-CAPYBARA_INLINE constexpr size_t convert_size(size_t value) {
-    return value;
+template<index_t I>
+CAPYBARA_INLINE constexpr ConstIndex<I>
+into_index(const std::integral_constant<index_t, I>&) {
+    return {};
 }
 
-template<typename T, T Value>
-CAPYBARA_INLINE constexpr ConstSize<Value> convert_size(ConstInt<T, Value> v) {
-    return convert_integer<size_t>(v);
+template<length_t I>
+using ConstLength = ConstInt<length_t, I>;
+
+template<length_t I>
+static constexpr ConstLength<I> const_length {};
+
+CAPYBARA_INLINE constexpr length_t into_length(length_t i) {
+    return i;
 }
 
-template<ptrdiff_t N>
-using ConstDiff = ConstInt<ptrdiff_t, N>;
-using DynDiff = ptrdiff_t;
-
-template<ptrdiff_t N>
-static constexpr ConstDiff<N> D = {};
-
-CAPYBARA_INLINE constexpr ptrdiff_t convert_diff(ptrdiff_t value) {
-    return value;
-}
-
-template<typename T, T Value>
-CAPYBARA_INLINE constexpr ConstDiff<(ptrdiff_t)Value>
-convert_diff(ConstInt<T, Value> v) {
-    return convert_integer<ptrdiff_t>(v);
-}
-
-template<typename T, T Value>
-CAPYBARA_INLINE constexpr ConstDiff<(ptrdiff_t)Value>
-convert_diff(std::integral_constant<T, Value> v) {
-    return convert_integer<ptrdiff_t>(v);
+template<length_t I>
+CAPYBARA_INLINE constexpr ConstLength<I>
+into_length(const std::integral_constant<length_t, I>&) {
+    return {};
 }
 
 template<bool b>
@@ -114,20 +117,14 @@ using ConstFalse = ConstBool<false>;
 static constexpr ConstBool<true> const_true {};
 static constexpr ConstBool<false> const_false {};
 
-CAPYBARA_INLINE constexpr bool convert_bool(bool value) {
+CAPYBARA_INLINE constexpr bool into_bool(bool value) {
     return value;
 }
 
-template<typename T, T Value>
-CAPYBARA_INLINE constexpr ConstBool<(bool)Value>
-convert_bool(ConstInt<T, Value>) {
-    return {};
-}
-
-template<typename T, T Value>
-CAPYBARA_INLINE constexpr ConstBool<(bool)Value>
-convert_bool(std::integral_constant<T, Value>) {
-    return {};
+template<typename T, T value>
+CAPYBARA_INLINE constexpr ConstBool<(bool)value>
+into_bool(const std::integral_constant<T, value>&) {
+    return value;
 }
 
 }  // namespace capybara

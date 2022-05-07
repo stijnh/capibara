@@ -27,6 +27,8 @@
     #define CAPYBARA_INLINE inline
 #endif
 
+#define CAPYBARA_NOINLINE __attribute__((noinline)) inline
+
 #if CAPYBARA_GCC_VERSION >= 40500
     #define CAPYBARA_UNREACHABLE __builtin_unreachable()
 #else
