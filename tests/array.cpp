@@ -1,22 +1,40 @@
 #include "capybara/array.h"
 
+#include "capybara/dimensions.h"
+#include "capybara/nullary.h"
 #include "catch.hpp"
+
+#define CHECK_SAME(...) CHECK(std::is_same<__VA_ARGS__>::value)
+#define CHECK_IDENTICAL(a, b)             \
+    CHECK_SAME(decltype(a), decltype(b)); \
+    CHECK(a == b)
 
 TEST_CASE("array") {
     using namespace capybara;
 
-    size_t n = 10;
-    Array1<int> x(n);
+    ArrayBase<int, Dimensions<Dyn, 2>> x = {1, 2};
 
-    CHECK(x(all).dims() == dims(n));
-    CHECK(x(reverse).dims() == dims(n));
-    CHECK(x(first(3)).dims() == dims(3));
-    CHECK(x(last(3)).dims() == dims(3));
-    CHECK(x(range(3, 6)).dims() == dims(6));
-    CHECK(x(newaxis).dims() == dims(1, n));
-    CHECK(x(newaxis(5)).dims() == dims(5, n));
-    CHECK(x(all, newaxis).dims() == dims(n, 1));
-    CHECK(x(all, newaxis(5)).dims() == dims(n, 5));
-    CHECK(x(1).dims() == dims());
-    CHECK(x(const_int<size_t, 5>).dims() == dims());
+    using D = Dimensions<Dyn, 2>;
+    using X = ArrayBase<int, D>;
+
+    CHECK(is_expr<X>);
+    CHECK(is_expr<const X>);
+    CHECK(is_expr<X&>);
+    CHECK(is_expr<const X&>);
+    CHECK(is_expr<X&&>);
+    CHECK(is_expr<const X&&>);
+
+    CHECK_SAME(IntoExpr<X>, ArrayRef<int, D>);
+    CHECK_SAME(IntoExpr<X&>, ArrayRef<int, D>);
+    CHECK_SAME(IntoExpr<X&&>, ArrayRef<int, D>);
+    CHECK_SAME(IntoExpr<const X>, ArrayRef<const int, D>);
+    CHECK_SAME(IntoExpr<const X&>, ArrayRef<const int, D>);
+    CHECK_SAME(IntoExpr<const X&&>, ArrayRef<const int, D>);
+
+    CHECK_SAME(IntoExpr<int>, ValueExpr<int>);
+    CHECK_SAME(IntoExpr<int&>, ValueExpr<int>);
+    CHECK_SAME(IntoExpr<int&&>, ValueExpr<int>);
+    CHECK_SAME(IntoExpr<const int>, ValueExpr<int>);
+    CHECK_SAME(IntoExpr<const int&>, ValueExpr<int>);
+    CHECK_SAME(IntoExpr<const int&&>, ValueExpr<int>);
 }

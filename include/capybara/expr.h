@@ -1,119 +1,158 @@
 #pragma once
 
-#include "assign.h"
-#include "axis.h"
+#include <array>
+#include <type_traits>
+#include <utility>
+
+#include "const_int.h"
+#include "dimensions.h"
 #include "forwards.h"
+#include "types.h"
 
 namespace capybara {
 
+namespace detail {
+    template<typename E, typename Axis, typename = void>
+    struct DimHelper {
+        using type = index_t;
+
+        CAPYBARA_INLINE
+        static type call(const E& expr, Axis axis) {
+            return expr.dim_impl(axis);
+        }
+    };
+
+    template<typename E, index_t axis>
+    struct DimHelper<
+        E,
+        ConstIndex<axis>,
+        enable_t<ExprConstDim<E, axis>::value >= 0>> {
+        using type = ConstIndex<ExprConstDim<E, axis>::value>;
+
+        CAPYBARA_INLINE
+        static type call(const E& expr, ConstIndex<axis>) {
+            return {};
+        }
+    };
+
+    template<
+        typename E,
+        typename = std::make_index_sequence<ExprTraits<E>::rank>>
+    struct IterateHelper;
+
+    template<typename E, size_t... axes>
+    struct IterateHelper<E, std::index_sequence<axes...>> {
+        static constexpr size_t rank = sizeof...(axes);
+        using Shape = std::array<index_t, rank>;
+
+        CAPYBARA_INLINE
+        static Shape shape(const E& expr) {
+            return {expr.dim(ConstIndex<axes> {})...};
+        }
+
+        using Dims = Dimensions<FromDimensionType<ExprDim<E, axes>>::value...>;
+
+        CAPYBARA_INLINE
+        static Dims dims(const E& expr) {
+            return {expr.dim(const_index<axes>)...};
+        }
+
+        CAPYBARA_INLINE
+        static bool empty(const E& expr) {
+            std::array<bool, rank> flags {
+                (expr.dim(const_index<axes>) <= 0)...};
+            bool result = false;
+
+            for (size_t i = 0; i < rank; i++) {
+                result |= flags[i];
+            }
+
+            return result;
+        }
+
+        CAPYBARA_INLINE
+        static index_t size(const E& expr) {
+            Shape shape = {expr.dim(const_index<axes>)...};
+            index_t result = 1;
+
+            for (size_t i = 0; i < rank; i++) {
+                result *= shape[i];
+            }
+
+            return result;
+        }
+    };
+}  // namespace detail
+
+template<typename E>
+using ExprDims = typename detail::IterateHelper<E>::Dims;
+
+template<typename E>
+using ExprValue = typename ExprTraits<E>::Value;
+
 template<typename Derived>
-struct ExprBase;
-
-template<
-    typename Derived,
-    bool enabled = ExprTraits<Derived>::mode != AccessMode::ReadOnly>
-struct ExprAssign: ExprBase<Derived> {};
-
-template<typename Derived>
-struct Expr: ExprAssign<Derived> {};
-
-template<typename Derived>
-struct ExprAssign<Derived, true>: ExprAssign<Derived, false> {
-    using Base = ExprBase<Derived>;
-    using Self = typename Base::Self;
-    using Base::self;
-
-    template<typename E>
-    Self& assign(const Expr<E>& rhs) {
-        execute_assign<AssignOp::Simple>(this->nested(), rhs.nested());
-        return self();
-    }
-
-    template<typename E>
-    Self& operator=(const Expr<E>& input) {
-        this->assign(input);
-        return self();
-    }
-};
-
-template<typename Derived>
-struct ExprBase {
+struct Expr {
     using Self = Derived;
-    using Traits = ExprTraits<Self>;
+    static constexpr size_t rank = ExprTraits<Self>::rank;
+    static constexpr bool is_view = ExprTraits<Self>::is_view;
+    static constexpr bool is_readable = ExprTraits<Self>::is_readable;
+    static constexpr bool is_writeable = ExprTraits<Self>::is_writeable;
+    using NestedMut = typename ExprNested<Self>::type;
+    using Nested = typename ExprNested<const Self>::type;
+    using CursorMut = typename ExprTraits<NestedMut>::Cursor;
+    using Cursor = typename ExprTraits<Nested>::Cursor;
+    using Value = ExprValue<Self>;
+    using Dims = typename detail::IterateHelper<Self>::Dims;
+    using Shape = std::array<index_t, rank>;
 
-    static constexpr size_t rank = Traits::rank;
-    static constexpr AccessMode mode = Traits::mode;
-    using NestedConstExpr = typename Traits::NestedConst;
-    using NestedExpr = typename Traits::Nested;
-    using Value = typename Traits::Value;
-
-    Self& self() {
-        return *(Self*)this;
+    Derived& self() {
+        return *(Derived*)this;
     }
 
-    const Self& self() const {
-        return *(const Self*)this;
+    const Derived& self() const {
+        return *(const Derived*)this;
     }
 
-    NestedExpr nested() {
-        return NestedExpr(self());
+    NestedMut nested() & {
+        return NestedMut(self());
     }
 
-    NestedConstExpr nested() const {
-        return NestedConstExpr(self());
+    NestedMut nested() && {
+        return NestedMut(self());
+    }
+
+    Nested nested() const& {
+        return Nested(self());
+    }
+
+    CursorMut cursor() {
+        return CursorMut(nested());
+    }
+
+    Cursor cursor() const {
+        return Cursor(nested());
     }
 
     template<typename Axis>
-    auto dim(Axis axis) const {
-        return into_length(self().dim_impl(into_axis<rank>(axis)));
+    index_t dim(Axis axis) const {
+        auto axis_ = into_index<rank>(axis);
+        return detail::DimHelper<Derived, decltype(axis_)>::call(self(), axis_);
     }
 
-    length_t size() const {
-        length_t result = 1;
-        for (index_t i = 0; i < rank; i++) {
-            result *= dim(i);
-        }
-
-        return result;
+    Dims dims() const {
+        return detail::IterateHelper<Self>::dims(self());
     }
 
     bool empty() const {
-        for (index_t i = 0; i < rank; i++) {
-            if (dim(i) <= 0) {
-                return true;
-            }
-        }
-
-        return true;
+        return detail::IterateHelper<Self>::empty(self());
     }
 
-    std::array<length_t, rank> shape() const {
-        std::array<length_t, rank> result;
-        for (index_t i = 0; i < rank; i++) {
-            result[i] = dim(i);
-        }
-
-        return result;
+    index_t size() const {
+        return detail::IterateHelper<Self>::size(self());
     }
 
-    auto dims() const {
-        return dims(std::make_index_sequence<rank> {});
-    }
-
-    template<size_t... indices>
-    auto dims(std::index_sequence<indices...>) const {
-        return make_hybrid_array<length_t>(dim(Axis<indices> {})...);
-    }
-
-    template<typename Device = DeviceSeq>
-    auto cursor(DeviceSeq device = {}) const {
-        return nested().cursor_impl(device);
-    }
-
-    template<typename Device = DeviceSeq>
-    auto cursor(DeviceSeq device = {}) {
-        return nested().cursor_impl(device);
+    Shape shape() const {
+        return detail::IterateHelper<Self>::shape(self());
     }
 };
-
 }  // namespace capybara

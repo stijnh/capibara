@@ -1,6 +1,6 @@
 #pragma once
 
-#include "axis.h"
+#include "const_int.h"
 
 namespace capybara {
 namespace literals {
@@ -22,7 +22,7 @@ namespace literals {
     }  // namespace detail
 
     template<char... chars>
-    constexpr Axis<detail::parse_digit<index_t>(0, chars...)>
+    constexpr ConstIndex<detail::parse_digit<index_t>(0, chars...)>
     operator"" _axis() {
         return {};
     }

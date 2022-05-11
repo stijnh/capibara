@@ -1,129 +1,115 @@
 #include "capybara/dimensions.h"
 
+#include "capybara/literals.h"
 #include "catch.hpp"
 
 #define CHECK_SAME(...) CHECK(std::is_same<__VA_ARGS__>::value)
+#define CHECK_IDENTICAL(a, b)             \
+    CHECK_SAME(decltype(a), decltype(b)); \
+    CHECK(a == b)
 
-TEST_CASE("test Dimensions") {
+TEST_CASE("dimensions") {
     using namespace capybara;
+    using namespace capybara::literals;
 
-    SECTION("check types") {
-        CHECK_SAME(Dimensions<>, DimensionsN<0>);
-        CHECK_SAME(Dimensions<DynSize>, DimensionsN<1>);
-        CHECK_SAME(Dimensions<DynSize, DynSize>, DimensionsN<2>);
-        CHECK_SAME(Dimensions<DynSize, DynSize, DynSize>, DimensionsN<3>);
+    SECTION("constructors") {
+        // init list
+        Dimensions<> {};
+        CHECK_THROWS(Dimensions<> {1, 4, 4});
+        Dimensions<1, 2, Dyn> {1, 2, 3};
+        CHECK_THROWS(Dimensions<1, 2, Dyn> {1, 4, 4});
 
-        CHECK_SAME(Dimensions<>, DimensionsDyn<>);
-        CHECK_SAME(Dimensions<DynSize>, DimensionsDyn<Dyn>);
-        CHECK_SAME(Dimensions<ConstSize<123>>, DimensionsDyn<123>);
-        CHECK_SAME(
-            Dimensions<DynSize, ConstSize<123>>,
-            DimensionsDyn<Dyn, 123>);
-        CHECK_SAME(
-            Dimensions<ConstSize<123>, DynSize>,
-            DimensionsDyn<123, Dyn>);
-        CHECK_SAME(Dimensions<DynSize, DynSize>, DimensionsDyn<Dyn, Dyn>);
+        // Tuple
+        Dimensions<> {Tuple<> {}};
+        Dimensions<1, 2, Dyn> {Tuple<int, long, int> {1, 2, 3}};
+        CHECK_THROWS(Dimensions<1, 2, Dyn> {Tuple<int, long, int> {3, 2, 3}});
 
-        CHECK_SAME(Dimensions<>, decltype(dims()));
-        CHECK_SAME(Dimensions<DynSize>, decltype(dims(1)));
-        CHECK_SAME(Dimensions<DynSize, DynSize>, decltype(dims(1, 2)));
+        // Dimensions
+        Dimensions<> {Dimensions0 {}};
+        Dimensions<1, 2, Dyn> {Dimensions3 {1, 2, 3}};
 
-        CHECK_SAME(Dimensions<ConstSize<7>>, decltype(dims(S<7>)));
-        CHECK_SAME(
-            Dimensions<ConstSize<12>, DynSize>,
-            decltype(dims(S<12>, 2)));
-        CHECK_SAME(
-            Dimensions<DynSize, ConstSize<20>>,
-            decltype(dims(1, S<20>)));
+        // Array
+        Dimensions<1, 2, Dyn> {std::array<index_t, 3> {1, 2, 3}};
+        CHECK_THROWS(Dimensions<1, 2, Dyn> {std::array<index_t, 2> {1, 2}});
     }
 
-    SECTION("operator==") {
-        auto d = dims(1, 2, S<3>);
-        CHECK(d == dims(1, 2, 3));
-        CHECK(d == dims(S<1>, 2, 3));
-        CHECK(d == dims(S<1>, S<2>, 3));
-        CHECK(d == dims(S<1>, 2, S<3>));
+    SECTION("assignment") {
+        Dimensions<> empty;
+        empty = {};
+        empty = capybara::into_tuple();
+        empty = std::array<index_t, 0> {};
+        empty = Dimensions0 {};
 
-        CHECK(d != dims(1, 2));
-        CHECK(d != dims(S<1>, 5, 3));
-        CHECK(d != dims(S<8>, S<2>, 3));
-        CHECK(d != dims(S<12>, 2, S<3>));
+        Dimensions3 dyns;
+        dyns = {1, 2, 3};
+        dyns = capybara::into_tuple(1, 2, 3);
+        dyns = std::array<index_t, 3> {1, 2, 3};
+        dyns = Dimensions<1, 2, Dyn> {1, 2, 3};
+
+        Dimensions<1, 2, Dyn> mixed;
+        dyns = {1, 2, 3};
+        dyns = capybara::into_tuple(1, 2, 3);
+        dyns = std::array<index_t, 3> {1, 2, 3};
+        dyns = Dimensions3 {1, 2, 3};
     }
 
-    SECTION("check dims(1, 2, 3)") {
-        auto d = dims(1, 2, 3);
-        d = dims(1, 2, 3);
-        d = dims(S<1>, 2, 3);
-        d = dims(1, S<2>, 3);
-        d = dims(1, 2, S<3>);
+    SECTION("get/set") {
+        Dimensions<1, 2, Dyn> x = {1, 2, 3};
 
-        CHECK_NOTHROW(d = dims(99, 2, 3));
-        CHECK_NOTHROW(d = dims(1, 99, 3));
-        CHECK_NOTHROW(d = dims(1, 2, 99));
-        CHECK_NOTHROW(d = dims(S<99>, 2, 3));
-        CHECK_NOTHROW(d = dims(1, S<99>, 3));
-        CHECK_NOTHROW(d = dims(1, 2, S<99>));
-        CHECK(d == dims(1, 2, 99));
+        SECTION("dynamic") {
+            CHECK(x.get(0) == 1);
+            CHECK(x.get(1) == 2);
+            CHECK(x.get(2) == 3);
+            CHECK_THROWS(x.get(-1));
+            CHECK_THROWS(x.get(3));
+
+            CHECK_NOTHROW(x.set(0, 1));
+            CHECK_THROWS(x.set(0, 10));
+            CHECK_NOTHROW(x.set(2, 10));
+
+            CHECK(x.get(2) == 10);
+        }
+
+        SECTION("static") {
+            CHECK_IDENTICAL(x.get(0_c), 1_c);
+            CHECK_IDENTICAL(x.get(1_c), 2_c);
+            CHECK_IDENTICAL(x.get(2_c), (index_t)3);
+
+            CHECK_NOTHROW(x.set(0_c, 1));
+            CHECK_THROWS(x.set(0_c, 10));
+            CHECK_NOTHROW(x.set(2_c, 10));
+
+            CHECK(x.get(2_c) == 10);
+        }
     }
 
-    SECTION("check dims(S<1>, 2, 3)") {
-        auto d = dims(S<1>, 2, 3);
-        d = dims(1, 2, 3);
-        d = dims(S<1>, 2, 3);
-        d = dims(1, S<2>, 3);
-        d = dims(1, 2, S<3>);
+    SECTION("into_dims") {
+        // array
+        CHECK_IDENTICAL(
+            (into_dims(std::array<index_t, 5> {1, 2, 3, 4, 5})),
+            (Dimensions5 {1, 2, 3, 4, 5}));
 
-        CHECK_THROWS(d = dims(99, 2, 3));
-        CHECK_NOTHROW(d = dims(1, 99, 3));
-        CHECK_NOTHROW(d = dims(1, 2, 99));
-        CHECK_THROWS(d = dims(S<99>, 2, 3));
-        CHECK_NOTHROW(d = dims(1, S<99>, 3));
-        CHECK_NOTHROW(d = dims(1, 2, S<99>));
-        CHECK(d == dims(1, 2, 99));
-    }
+        CHECK_IDENTICAL((into_dims(std::array<index_t, 0> {})), Dimensions0 {});
 
-    SECTION("check dims(S<1>, S<2>, 3)") {
-        auto d = dims(S<1>, S<2>, 3);
-        d = dims(1, 2, 3);
-        d = dims(S<1>, 2, 3);
-        d = dims(1, S<2>, 3);
-        d = dims(1, 2, S<3>);
+        // Dimensions
+        CHECK_IDENTICAL(
+            (into_dims(Dimensions<1, 2, Dyn> {1, 2, 3})),
+            (Dimensions<1, 2, Dyn> {1, 2, 3}));
 
-        CHECK_THROWS(d = dims(99, 2, 3));
-        CHECK_THROWS(d = dims(1, 99, 3));
-        CHECK_NOTHROW(d = dims(1, 2, 99));
-        CHECK_THROWS(d = dims(S<99>, 2, 3));
-        CHECK_THROWS(d = dims(1, S<99>, 3));
-        CHECK_NOTHROW(d = dims(1, 2, S<99>));
-        CHECK(d == dims(1, 2, 99));
-    }
+        CHECK_IDENTICAL(into_dims(Dimensions<> {}), Dimensions<> {});
 
-    SECTION("check dims(S<1>, S<2>, S<3>)") {
-        auto d = dims(S<1>, S<2>, S<3>);
-        d = dims(1, 2, 3);
-        d = dims(S<1>, 2, 3);
-        d = dims(1, S<2>, 3);
-        d = dims(1, 2, S<3>);
+        // list of integers
+        CHECK_IDENTICAL(into_dims(1, 2, 3), (Dimensions3 {1, 2, 3}));
+        CHECK_IDENTICAL(into_dims(), (Dimensions<> {}));
 
-        CHECK_THROWS(d = dims(99, 2, 3));
-        CHECK_THROWS(d = dims(1, 99, 3));
-        CHECK_THROWS(d = dims(1, 2, 99));
-        CHECK_THROWS(d = dims(S<99>, 2, 3));
-        CHECK_THROWS(d = dims(1, S<99>, 3));
-        CHECK_THROWS(d = dims(1, 2, S<99>));
-        CHECK(d == dims(1, 2, 3));
-    }
+        CHECK_IDENTICAL(
+            (into_dims(capybara::into_tuple(1_c, 2_c, 3))),
+            (Dimensions<1, 2, Dyn> {1, 2, 3}));
+        CHECK_IDENTICAL(into_dims(capybara::into_tuple()), Dimensions0 {});
 
-    SECTION("operator=") {
-        auto d = dims(1, 2, S<3>);
-
-        d = std::make_tuple<int>(4, 5, 3);
-        CHECK(d == dims(4, 5, 3));
-
-        d = std::array<size_t, 3> {6, 7, 3};
-        CHECK(d == dims(6, 7, 3));
-
-        d = Dimensions<ConstSize<8>, ConstSize<9>, ConstSize<3>>(8, 9, 3);
-        CHECK(d == dims(8, 9, 3));
+        // inequality
+        CHECK(Dimensions1 {} != Dimensions0 {});
+        CHECK(Dimensions1 {} != Dimensions<1> {});
+        CHECK(Dimensions1 {} != Dimensions<1, 2> {});
     }
 }

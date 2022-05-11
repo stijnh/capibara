@@ -6,11 +6,20 @@
 
 namespace capybara {
 
-template<bool cond>
-using enabled = typename std::enable_if<cond>::type;
+template<bool cond, typename Type = void>
+using enable_t = typename std::enable_if<cond, Type>::type;
+
+template<typename F, typename... Args>
+using apply_t = typename std::result_of<F(Args...)>::type;
+
+template<typename... Ts>
+using common_t = typename std::common_type<Ts...>::type;
 
 template<typename T>
-using decayed = typename std::decay<T>::type;
+using decay_t = typename std::decay<T>::type;
+
+template<typename... Ts>
+using void_t = void;
 
 namespace detail {
     template<typename L, typename R, typename = void>
@@ -50,11 +59,11 @@ namespace detail {
     struct CompareHelper<
         L,
         R,
-        enabled<
-            std::is_signed<decayed<L>>::value
-            && std::is_unsigned<decayed<R>>::value>> {
+        enable_t<
+            std::is_signed<decay_t<L>>::value
+            && std::is_unsigned<decay_t<R>>::value>> {
         using Self = CompareHelper<L, R>;
-        using UL = typename std::make_unsigned<decayed<L>>::type;
+        using UL = typename std::make_unsigned<decay_t<L>>::type;
 
         CAPYBARA_INLINE
         constexpr static bool lt(const L& left, const R& right) noexcept {
@@ -91,9 +100,9 @@ namespace detail {
     struct CompareHelper<
         L,
         R,
-        enabled<
-            std::is_unsigned<decayed<L>>::value
-            && std::is_signed<decayed<R>>::value>> {
+        enable_t<
+            std::is_unsigned<decay_t<L>>::value
+            && std::is_signed<decay_t<R>>::value>> {
         using Reverse = CompareHelper<R, L>;
 
         CAPYBARA_INLINE
