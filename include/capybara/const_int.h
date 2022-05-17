@@ -1,185 +1,103 @@
-#pragma once
-
-#include <sstream>
-#include <stdexcept>
-#include <type_traits>
-
-#include "defines.h"
-#include "types.h"
-#include "util.h"
+#include "forwards.h"
+#include "literals.h"
 
 namespace capybara {
+static constexpr size_t max_index_value = std::numeric_limits<index_t>::max();
+template<index_t U = max_index_value>
+struct dyn_index;
 
-template<typename T, T value>
-struct ConstInt: std::integral_constant<T, value> {
-    CAPYBARA_INLINE
-    constexpr ConstInt() {}
-    CAPYBARA_INLINE
-    ConstInt(T input) {
-        set(input);
-    }
-
-    CAPYBARA_INLINE
-    constexpr operator T() const {
-        return value;
-    }
+template<typename T, T I>
+struct const_integer: std::integral_constant<T, I> {
+    const_integer() = default;
+    const_integer(const const_integer&) = default;
 
     CAPYBARA_INLINE
-    constexpr static T get() {
-        return value;
-    }
-
-    CAPYBARA_INLINE
-    static void set(T input) {
-        if (value != input) {
-            std::stringstream ss;
-            ss << "cannot set constant value: expecting value " << value
-               << ", given value" << input;
-            throw std::runtime_error(ss.str());
+    const_integer(T v) {
+        if (v != I) {
+            throw std::runtime_error("invalid index");
         }
+    }
+
+    CAPYBARA_INLINE
+    T get() const {
+        return I;
+    }
+
+    CAPYBARA_INLINE
+    operator T() const {
+        return I;
+    }
+
+    CAPYBARA_INLINE
+    T operator()() const {
+        return I;
     }
 };
 
-#define CAPYBARA_CONST_INT_UNARY_OP(op, return_type)                  \
-    template<typename T, T value>                                     \
-    ConstInt<return_type, op value> operator op(ConstInt<T, value>) { \
-        return {};                                                    \
-    }
-
-CAPYBARA_CONST_INT_UNARY_OP(+, T)
-CAPYBARA_CONST_INT_UNARY_OP(-, T)
-CAPYBARA_CONST_INT_UNARY_OP(!, bool)
-#undef CAPYBARA_CONST_INT_UNARY_OP
-
-#define CAPYBARA_CONST_INT_BINARY_OP(op, return_type)   \
-    template<typename T, T left, T right>               \
-    ConstInt<return_type, (left op right)> operator op( \
-        ConstInt<T, left>,                              \
-        ConstInt<T, right>) {                           \
-        return {};                                      \
-    }
-
-CAPYBARA_CONST_INT_BINARY_OP(+, T)
-CAPYBARA_CONST_INT_BINARY_OP(-, T)
-CAPYBARA_CONST_INT_BINARY_OP(*, T)
-CAPYBARA_CONST_INT_BINARY_OP(/, T)
-CAPYBARA_CONST_INT_BINARY_OP(%, T)
-CAPYBARA_CONST_INT_BINARY_OP(==, bool)
-CAPYBARA_CONST_INT_BINARY_OP(!=, bool)
-CAPYBARA_CONST_INT_BINARY_OP(<, bool)
-CAPYBARA_CONST_INT_BINARY_OP(>, bool)
-CAPYBARA_CONST_INT_BINARY_OP(<=, bool)
-CAPYBARA_CONST_INT_BINARY_OP(>=, bool)
-#undef CAPYBARA_CONST_INT_BINARY_OP
-
-template<bool b>
-using ConstBool = ConstInt<bool, b>;
-using ConstTrue = ConstBool<true>;
-using ConstFalse = ConstBool<false>;
-
-static constexpr ConstBool<true> const_true {};
-static constexpr ConstBool<false> const_false {};
-
-CAPYBARA_INLINE constexpr bool into_bool(bool value) {
-    return value;
+template <typename T, T I>
+CAPYBARA_INLINE
+const_integer<T, -I> operator-(const_integer<T, I>) {
+    return {};
 }
 
-template<typename T, T value>
-CAPYBARA_INLINE constexpr ConstBool<(bool)value>
-into_bool(std::integral_constant<T, value>) {
-    return value;
-}
-
-template<index_t i>
-using ConstIndex = ConstInt<index_t, i>;
-
-template<index_t i>
-static constexpr ConstIndex<i> const_index {};
-
-namespace detail {
-    template<index_t upper, typename = void>
-    struct DynIndexStorage {
-        DynIndexStorage(index_t v) : inner_(v) {}
-
-      protected:
-        CAPYBARA_INLINE
-        index_t get_impl() const {
-            index_t v = inner_;
-
-            if (v < 0) {
-                CAPYBARA_UNREACHABLE;
-            }
-
-            if (v >= upper) {
-                CAPYBARA_UNREACHABLE;
-            }
-
-            return inner_;
-        }
-
-      private:
-        index_t inner_;
-    };
-
-    template<index_t upper>
-    struct DynIndexStorage<
-        upper,
-        enable_t<(upper > 0 && upper <= std::numeric_limits<uint8_t>::max())>> {
-        DynIndexStorage(index_t v) : inner_(v) {}
-
-      protected:
-        CAPYBARA_INLINE
-        index_t get_impl() const {
-            index_t v = inner_;
-
-            if (v < 0) {
-                CAPYBARA_UNREACHABLE;
-            }
-
-            if (v >= upper) {
-                CAPYBARA_UNREACHABLE;
-            }
-
-            return v;
-        }
-
-      private:
-        uint8_t inner_;
-    };
-
-    template<>
-    struct DynIndexStorage<1> {
-        DynIndexStorage(index_t v) {}
-
-      protected:
-        CAPYBARA_INLINE
-        index_t get_impl() const {
-            return 0;
-        }
-    };
-}  // namespace detail
-
-template<index_t upper = std::numeric_limits<index_t>::max()>
-struct DynIndex: private detail::DynIndexStorage<upper> {
-    static_assert(upper >= 0, "upper must be non-negative");
-    using Base = detail::DynIndexStorage<upper>;
-
-    CAPYBARA_INLINE
-    DynIndex(index_t v) : Base(v) {
-        if (v < 0 || v >= upper) {
-            throw std::runtime_error("index out of bounds");
-        }
+#define CAPYBARA_CONST_INTEGER_OP(op)                         \
+    template<typename T, T I, T J>              \
+    CAPYBARA_INLINE const_integer<T, (I op J)> operator op( \
+        const_integer<T, I>,                                \
+        const_integer<T, J>) {                              \
+        return {};                                          \
     }
 
-    template<index_t i>
-    CAPYBARA_INLINE DynIndex(ConstIndex<i>) : DynIndex(i) {}
+CAPYBARA_CONST_INTEGER_OP(+)
+CAPYBARA_CONST_INTEGER_OP(-)
+CAPYBARA_CONST_INTEGER_OP(*)
+CAPYBARA_CONST_INTEGER_OP(/)
+CAPYBARA_CONST_INTEGER_OP(%)
+#undef CAPYBARA_CONST_INTEGER_OP
 
+template<size_t I>
+using const_size = const_integer<size_t, I>;
+
+template<index_t I>
+using const_index = const_integer<index_t, I>;
+
+template<stride_t I>
+using const_stride = const_integer<stride_t, I>;
+
+template<index_t U>
+struct dyn_index {
     CAPYBARA_INLINE
-    DynIndex() : DynIndex(0) {}
+    dyn_index(index_t v) {
+        if (v < 0 || v >= U) {
+            throw std::runtime_error("invalid index");
+        }
+
+        value_ = v;
+    }
+
+    template<index_t I>
+    CAPYBARA_INLINE dyn_index(const_index<I>) : dyn_index(I) {}
+
+    template<index_t U2>
+    CAPYBARA_INLINE dyn_index(dyn_index<U2> v) {
+        if (U2 > U && v.get() >= U) {
+            throw std::runtime_error("invalid index");
+        }
+
+        value_ = v;
+    }
 
     CAPYBARA_INLINE
     index_t get() const {
-        return this->get_impl();
+        if (value_ < 0) {
+            CAPYBARA_UNREACHABLE;
+        }
+
+        if (value_ >= U) {
+            CAPYBARA_UNREACHABLE;
+        }
+
+        return value_;
     }
 
     CAPYBARA_INLINE
@@ -188,57 +106,51 @@ struct DynIndex: private detail::DynIndexStorage<upper> {
     }
 
     CAPYBARA_INLINE
-    void set(index_t v) const {
-        *this = DynIndex(v);
+    index_t operator()() const {
+        return get();
     }
+
+  private:
+    index_t value_;
 };
 
-template<
-    index_t n,
-    index_t m,
-    typename = enable_t<
-        (n + m > 1) && (n - 1 <= std::numeric_limits<index_t>::max() - m)>>
-DynIndex<n + m - 1> operator+(DynIndex<n> lhs, DynIndex<m> rhs) {
-    return lhs.get() + rhs.get();
+template<index_t U = max_index_value>
+CAPYBARA_INLINE dyn_index<U> into_index(index_t v) {
+    return v;
 }
 
-template<index_t n, index_t m>
-DynIndex<n + m> operator+(DynIndex<n> lhs, ConstIndex<m> rhs) {
-    return lhs.get() + rhs.get();
+template<index_t U = max_index_value, index_t U2>
+CAPYBARA_INLINE dyn_index<U> into_index(dyn_index<U2> v) {
+    return v;
 }
 
-template<index_t n, index_t m>
-DynIndex<n + m> operator+(ConstIndex<n> lhs, DynIndex<m> rhs) {
-    return lhs.get() + rhs.get();
+template<index_t U = max_index_value, typename T, T I>
+CAPYBARA_INLINE const_index<index_t(I)>
+into_index(std::integral_constant<T, I> v) {
+    static_assert(I >= 0 && I < U, "invalid index");
+    return v;
 }
 
-template<index_t upper>
-CAPYBARA_INLINE constexpr DynIndex<upper> into_index(index_t value) {
-    return value;
+template<index_t U, typename T>
+CAPYBARA_INLINE void assert_index(T&& v) {
+    into_index(std::forward<T>(v));  // ignore result
 }
 
-template<index_t upper, typename T, T value>
-CAPYBARA_INLINE constexpr enable_t<
-    std::is_integral<T>::value
-        && (cmp_greater_equal(value, 0) && cmp_less(value, upper)),
-    ConstIndex<(index_t)value>>
-into_index(std::integral_constant<T, value>) {
-    return {};
+template<index_t U, index_t J>
+CAPYBARA_INLINE dyn_index<saturating_add(U, J)>
+operator+(dyn_index<U> v, const_index<J>) {
+    return v + J;
 }
 
-template<index_t upper, typename T>
-CAPYBARA_INLINE constexpr void assert_index_bound(T value) {
-    into_index<upper>(value);  // throws error if T is invalid
+template<index_t U, index_t J>
+CAPYBARA_INLINE dyn_index<saturating_add(U, J)>
+operator+(const_index<J>, dyn_index<U> v) {
+    return v + J;
 }
 
-#define DEFINE_FIXED_AXIS_CONSTANT(N) static constexpr ConstIndex<N> axis##N {};
-DEFINE_FIXED_AXIS_CONSTANT(0)
-DEFINE_FIXED_AXIS_CONSTANT(1)
-DEFINE_FIXED_AXIS_CONSTANT(2)
-DEFINE_FIXED_AXIS_CONSTANT(3)
-DEFINE_FIXED_AXIS_CONSTANT(4)
-DEFINE_FIXED_AXIS_CONSTANT(5)
-DEFINE_FIXED_AXIS_CONSTANT(6)
-#undef DEFINE_FIXED_AXIS_CONSTANT
-
+template<index_t U, index_t U2>
+CAPYBARA_INLINE dyn_index<saturating_add(U, U2)>
+operator+(dyn_index<U> lhs, dyn_index<U2> rhs) {
+    return (index_t)lhs + (index_t)rhs;
+}
 }  // namespace capybara

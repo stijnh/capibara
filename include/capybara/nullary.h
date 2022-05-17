@@ -1,57 +1,55 @@
 #pragma once
-
-#include <complex>
-#include <random>
-
 #include "expr.h"
 
 namespace capybara {
 
 template<typename F>
-struct NullaryCursor;
+struct nullary_cursor;
 
-template<typename F, typename D>
-struct ExprTraits<NullaryExpr<F, D>> {
-    static constexpr size_t rank = D::rank;
+template<typename F, size_t N>
+struct expr_traits<nullary_expr<F, N>> {
+    static constexpr size_t rank = N;
+    using value_type = typename invoke_result<F>::type;
+    static constexpr bool is_writable = false;
     static constexpr bool is_view = false;
-    static constexpr bool is_readable = true;
-    static constexpr bool is_writeable = false;
-    using Cursor = NullaryCursor<F>;
-    using Value = typename Cursor::Value;
 };
 
-template<typename F, typename D>
-struct NullaryExpr: Expr<NullaryExpr<F, D>> {
-    friend NullaryCursor<F>;
+template<typename F, size_t N, typename D>
+struct expr_cursor<nullary_expr<F, N>, D> {
+    using type = nullary_cursor<F>;
+};
 
-    NullaryExpr(F fun = {}, D dims = {}) :
+template<typename F, size_t N>
+struct nullary_expr: expr<nullary_expr<F, N>> {
+    friend struct nullary_cursor<F>;
+    using base_type = expr<nullary_expr<F, N>>;
+    using typename base_type::shape_type;
+
+    nullary_expr(F fun = {}, shape_type shape = {}) :
         fun_(std::move(fun)),
-        dims_(std::move(dims)) {}
+        shape_(shape) {}
 
-    template<typename Axis>
-    index_t dim_impl(Axis axis) const {
-        return dims_[axis];
+    index_t dimension_impl(index_t axis) const {
+        return shape_[axis];
     }
 
   private:
     F fun_;
-    D dims_;
+    shape_type shape_;
 };
 
 template<typename F>
-struct NullaryCursor {
-    using Value = apply_t<F&>;
+struct nullary_cursor {
+    using value_type = typename invoke_result<F>::type;
 
-    template<typename D>
-    NullaryCursor(NullaryExpr<F, D>&& e) : fun_(std::move(e.fun_)) {}
+    template<size_t N>
+    nullary_cursor(const nullary_expr<F, N>& expr) : fun_(expr.fun) {
+        //
+    }
 
-    template<typename D>
-    NullaryCursor(const NullaryExpr<F, D>& e) : fun_(e.fun_) {}
+    void advance(index_t axis, index_t steps) {}
 
-    template<typename Axis, typename Steps>
-    void advance(Axis axis, Steps steps) {}
-
-    Value eval() {
+    value_type load() const {
         return fun_();
     }
 
@@ -61,61 +59,31 @@ struct NullaryCursor {
 
 namespace functors {
     template<typename T>
-    struct Value {
-        Value() = default;
-        Value(T val) : inner_(std::move(val)) {}
+    struct value {
+        value(T val = {}) : val_(std::move(val)) {}
 
         T operator()() const {
-            return inner_;
+            return val_;
         }
 
       private:
-        T inner_;
+        T val_;
     };
 
     template<typename T = void>
-    struct Zero {
+    struct zero {
         T operator()() const {
-            return T {};
+            return T {0};
+        }
+
+        operator T() const {
+            return T {0};
         }
     };
 
     template<>
-    struct Zero<void> {
-        operator bool() const {
-            return false;
-        }
-        operator char() const {
-            return 0;
-        }
-        operator unsigned char() const {
-            return 0;
-        }
-        operator signed char() const {
-            return 0;
-        }
-        operator unsigned short() const {
-            return 0;
-        }
-        operator signed short() const {
-            return 0;
-        }
-        operator unsigned int() const {
-            return 0;
-        }
-        operator signed int() const {
-            return 0;
-        }
-        operator unsigned long() const {
-            return 0;
-        }
-        operator signed long() const {
-            return 0;
-        }
-        operator float() const {
-            return 0;
-        }
-        operator double() const {
+    struct zero<void> {
+        operator int() const {
             return 0;
         }
         operator std::complex<float>() const {
@@ -124,58 +92,26 @@ namespace functors {
         operator std::complex<double>() const {
             return 0;
         }
-        operator nullptr_t() const {
-            return nullptr;
-        }
 
-        Zero operator()() const {
+        zero operator()() const {
             return *this;
         }
     };
 
     template<typename T = void>
-    struct One {
+    struct one {
         T operator()() const {
             return T {1};
+        }
+
+        operator T() const {
+            return 1;
         }
     };
 
     template<>
-    struct One<void> {
-        operator bool() const {
-            return true;
-        }
-        operator char() const {
-            return 1;
-        }
-        operator unsigned char() const {
-            return 1;
-        }
-        operator signed char() const {
-            return 1;
-        }
-        operator unsigned short() const {
-            return 1;
-        }
-        operator signed short() const {
-            return 1;
-        }
-        operator unsigned int() const {
-            return 1;
-        }
-        operator signed int() const {
-            return 1;
-        }
-        operator unsigned long() const {
-            return 1;
-        }
-        operator signed long() const {
-            return 1;
-        }
-        operator float() const {
-            return 1;
-        }
-        operator double() const {
+    struct one<void> {
+        operator int() const {
             return 1;
         }
         operator std::complex<float>() const {
@@ -185,36 +121,33 @@ namespace functors {
             return 1;
         }
 
-        One operator()() const {
+        one operator()() const {
             return *this;
         }
     };
 }  // namespace functors
 
-template<typename T, typename D>
-struct ExprTraits<ValueExpr<T, D>>:
-    ExprTraits<NullaryExpr<functors::Value<T>>> {};
-
-template<typename T, typename D>
-struct ValueExpr: NullaryExpr<functors::Value<T>> {
-    using Base = NullaryExpr<functors::Value<T>>;
-
-    ValueExpr(T value) : Base(functors::Value<T> {std::move(value)}) {}
-};
-
-template<typename T = void, typename... Ds>
-NullaryExpr<functors::Zero<T>, IntoDims<Ds...>> zeros(Ds&&... dim) {
-    return {{}, into_dims(std::forward<Ds>(dim)...)};
+template<typename T = void, size_t N>
+nullary_expr<functors::zero<T>, N> zeros(std::array<index_t, N> shape = {}) {
+    return {{}, shape};
 }
 
-template<typename T = void, typename... Ds>
-NullaryExpr<functors::One<T>, IntoDims<Ds...>> ones(Ds&&... dim) {
-    return {{}, into_dims(std::forward<Ds>(dim)...)};
+template<typename T = void, size_t N>
+nullary_expr<functors::one<T>, N> ones(std::array<index_t, N> shape = {}) {
+    return {{}, shape};
 }
 
-template<typename T, typename... Ds>
-NullaryExpr<functors::Value<T>, IntoDims<Ds...>> full(T value, Ds&&... dim) {
-    return {{std::move(value)}, into_dims(std::forward<Ds>(dim)...)};
+template<typename T, size_t N = 0>
+using scalar_type = nullary_expr<functors::value<decay_t<T>>, N>;
+
+template<typename T, size_t N = 0>
+scalar_type<T, N> full(T&& value, std::array<T, N> shape = {}) {
+    return {{std::forward<T>(value)}, shape};
+}
+
+template<typename T, size_t N = 0>
+scalar_type<T, N> scalar(T&& value) {
+    return {{std::forward<T>(value)}};
 }
 
 }  // namespace capybara

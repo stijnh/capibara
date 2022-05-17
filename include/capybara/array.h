@@ -1,205 +1,317 @@
 #pragma once
-
-#include <array>
 #include <memory>
 
 #include "expr.h"
 
 namespace capybara {
 
-template<typename T, typename D>
-struct ArrayRef;
+namespace storage {
+    template<typename T>
+    struct heap {
+        using value_type = T;
+        using const_value_type = const T;
 
-template<typename T, typename D>
-struct ArrayCursor;
+        heap() = default;
 
-template<typename T, typename D>
-struct ExprTraits<ArrayBase<T, D>> {
-    static constexpr size_t rank = std::tuple_size<D>::value;
+        CAPYBARA_INLINE
+        void resize(size_t n) {
+            data_.reset(new T[n]);
+        }
+
+        CAPYBARA_INLINE
+        T* data() {
+            return data_.get();
+        }
+
+        CAPYBARA_INLINE
+        const T* data() const {
+            return data_.get();
+        }
+
+      private:
+        std::unique_ptr<T[]> data_;
+    };
+
+    template<typename T, size_t Max = 1>
+    struct stack {
+        using value_type = T;
+        using const_value_type = const T;
+
+        stack() = default;
+
+        CAPYBARA_INLINE
+        void resize(size_t n) {
+            if (n > Max) {
+                throw std::runtime_error("exceeds maximum size");
+            }
+        }
+
+        CAPYBARA_INLINE
+        T* data() {
+            return data_.data();
+        }
+
+        CAPYBARA_INLINE
+        const T* data() const {
+            return data_.data();
+        }
+
+      private:
+        std::array<T, Max> data_;
+    };
+
+    template<typename T>
+    struct span {
+        using value_type = T;
+        using const_value_type = T;
+
+        span(stack<T>& v) : data_(v.data()) {}
+        span(heap<T>& v) : data_(v.data()) {}
+        span(T* ptr) : data_(ptr) {}
+
+        void resize(size_t n) {
+            // TODO???
+        }
+
+        CAPYBARA_INLINE
+        T* data() const {
+            return data_;
+        }
+
+      private:
+        T* data_;
+    };
+
+    template<typename T>
+    struct span<const T> {
+        using value_type = const T;
+        using const_value_type = const T;
+
+        span(const stack<T>& v) : data_(v.data()) {}
+        span(const heap<T>& v) : data_(v.data()) {}
+        span(const T* ptr) : data_(ptr) {}
+
+        void resize(size_t n) {
+            // TODO???
+        }
+
+        CAPYBARA_INLINE
+        const T* data() const {
+            return data_;
+        }
+
+      private:
+        T* data_;
+    };
+}  // namespace storage
+
+namespace layout {
+    template<size_t N>
+    struct row_major {
+        static constexpr size_t rank = N;
+        using shape_type = std::array<index_t, N>;
+
+        row_major() = default;
+        row_major(shape_type shape) {
+            resize(shape);
+        }
+
+        void resize(shape_type shape) {
+            shape_ = shape;
+        }
+
+        CAPYBARA_INLINE
+        index_t dimension(index_t axis) const {
+            return shape_[axis];
+        }
+
+        CAPYBARA_INLINE
+        stride_t stride(index_t axis) const {
+            stride_t result = 1;
+
+            for (index_t i = axis + 1; i < static_cast<index_t>(rank); i++) {
+                result *= static_cast<stride_t>(shape_[i]);
+            }
+
+            return result;
+        }
+
+      private:
+        shape_type shape_;
+    };
+
+    template<size_t N>
+    using default_layout = row_major<N>;
+}  // namespace layout
+
+template<typename T, size_t N>
+struct array_cursor;
+
+template<typename L, typename S>
+struct expr_traits<array_base<L, S>> {
+    static constexpr size_t rank = L::rank;
+    using value_type = typename S::value_type;
+    static constexpr bool is_writable = !std::is_const<value_type>::value;
     static constexpr bool is_view = true;
-    static constexpr bool is_readable = true;
-    static constexpr bool is_writeable = true;
-    using Value = decay_t<T>;
-    using Cursor = ArrayCursor<T, D>;
 };
 
-template<typename T, typename D>
-struct ExprTraits<const ArrayBase<T, D>>: ExprTraits<ArrayBase<T, D>> {
-    static constexpr bool is_writeable = false;
-    using Cursor = ArrayCursor<const T, D>;
+template<typename L, typename S>
+struct expr_traits<const array_base<L, S>>: expr_traits<array_base<L, S>> {
+    using value_type = typename S::const_value_type;
+    static constexpr bool is_writable = !std::is_const<value_type>::value;
 };
 
-template<typename T, typename D>
-struct ExprNested<ArrayBase<T, D>> {
-    using type = ArrayRef<T, D>;
+template<typename L, typename S>
+struct expr_nested<array_base<L, S>> {
+    using type = array_base<L, storage::span<typename S::value_type>>;
 };
 
-template<typename T, typename D>
-struct ExprNested<const ArrayBase<T, D>> {
-    using type = ArrayRef<const T, D>;
+template<typename L, typename S>
+struct expr_nested<const array_base<L, S>> {
+    using type = array_base<L, storage::span<typename S::const_value_type>>;
 };
 
-namespace detail {
-    template<
-        size_t i,
-        typename D,
-        typename = typename std::tuple_element<i, D>::type>
-    struct DimConstHelper {};
+template<typename L, typename S, typename D>
+struct expr_cursor<array_base<L, S>, D> {
+    using type = array_cursor<typename S::value_type, L::rank>;
+};
 
-    template<size_t i, typename D, index_t size>
-    struct DimConstHelper<i, D, ConstIndex<size>>: ConstIndex<size> {};
-}  // namespace detail
+template<typename L, typename S, typename D>
+struct expr_cursor<const array_base<L, S>, D> {
+    using type = array_cursor<typename S::const_value_type, L::rank>;
+};
 
-template<size_t i, typename T, typename D>
-struct ExprConstDim<ArrayBase<T, D>, i>: detail::DimConstHelper<i, D> {};
+template<typename L, typename S>
+struct array_base: expr<array_base<L, S>> {
+    template<typename L2, typename S2>
+    friend struct array_base;
 
-template<size_t i, typename T, typename D>
-struct ExprConstDim<ArrayRef<T, D>, i>: ExprConstDim<ArrayBase<T, D>, i> {};
+    using base_type = expr<array_base<L, S>>;
+    using base_type::rank;
+    using typename base_type::shape_type;
+    using layout_type = L;
+    using storage_type = S;
+    using value_type = typename S::value_type;
+    using const_value_type = typename S::const_value_type;
 
-template<size_t i, typename T, typename D>
-struct ExprConstDim<ArrayRef<const T, D>, i>:
-    ExprConstDim<ArrayRef<T, D>, i> {};
+    template<typename L2, typename S2>
+    array_base(const array_base<L2, S2>& r) :
+        layout_(r.layout_),
+        storage_(r.storage_) {}
 
-template<typename T, typename D>
-struct ArrayBase: Expr<ArrayBase<T, D>> {
-    ArrayBase(D dims) : dims_(dims) {
-        size_t size = this->size();
-        base_.reset(new T[size]);
+    template<typename L2, typename S2>
+    array_base(array_base<L2, S2>& r) :
+        layout_(r.layout_),
+        storage_(r.storage_) {}
+
+    array_base(layout_type layout = {}, storage_type storage = {}) :
+        layout_(std::move(layout)),
+        storage_(std::move(storage)) {
+        storage_.resize(this->size());
     }
 
-    ArrayBase(const std::initializer_list<index_t>& list) :
-        ArrayBase(D(list.begin(), list.end())) {}
-
-    ArrayBase() : ArrayBase(D {}) {}
-
-    template<typename Axis>
-    index_t dim_impl(Axis axis) const {
-        return dims_[axis];
+    array_base(shape_type shape) {
+        resize(shape);
     }
 
-    T* data() {
-        return base_.get();
+    CAPYBARA_INLINE
+    void resize(shape_type shape) {
+        layout_.resize(shape);
+        storage_.resize(this->size());
     }
 
-    const T* data() const {
-        return base_.get();
+    CAPYBARA_INLINE
+    index_t dimension_impl(index_t axis) const {
+        return layout_.dimension(axis);
+    }
+
+    CAPYBARA_INLINE
+    stride_t stride_impl(index_t axis) const {
+        return layout_.stride(axis);
+    }
+
+    CAPYBARA_INLINE
+    value_type* data() {
+        return storage_.data();
+    }
+
+    CAPYBARA_INLINE
+    const_value_type* data() const {
+        return storage_.data();
     }
 
   private:
-    std::unique_ptr<T[]> base_;
-    D dims_;
+    L layout_;
+    S storage_;
 };
 
-template<typename T, typename D>
-struct ExprTraits<ArrayRef<T, D>>: ExprTraits<ArrayBase<T, D>> {};
+template<typename T, size_t N>
+struct array_cursor {
+    static constexpr size_t rank = N;
 
-template<typename T, typename D>
-struct ArrayRef: Expr<ArrayRef<T, D>> {
-    ArrayRef(const ArrayRef<T, D>& a) = default;
-    ArrayRef(ArrayBase<T, D>& a) : inner_(a) {}
+    template<typename L, typename S>
+    array_cursor(array_base<L, S>& base, device_seq) :
+        data_(base.data()),
+        strides_(base.strides()) {}
 
-    template<typename Axis>
-    index_t dim_impl(Axis axis) const {
-        return inner_.dim(axis);
+    template<typename L, typename S>
+    array_cursor(const array_base<L, S>& base, device_seq) :
+        data_(base.data()),
+        strides_(base.strides()) {}
+
+    void advance(index_t axis, index_t steps) {
+        data_ += strides_[axis] * steps;
     }
 
-    template<typename Axis>
-    index_t stride_impl(Axis axis) const {
-        return inner_.stride(axis);
-    }
-
-    T* data() const {
-        return inner_.data();
-    }
-
-    ArrayBase<T, D>& parent() const {
-        return inner_;
-    }
-
-  private:
-    ArrayBase<T, D>& inner_;
-};
-
-template<typename T, typename D>
-struct ExprTraits<ArrayRef<const T, D>>: ExprTraits<const ArrayBase<T, D>> {};
-
-template<typename T, typename D>
-struct ArrayRef<const T, D>: Expr<ArrayRef<const T, D>> {
-    ArrayRef(const ArrayRef<T, D>& a) : inner_(a.inner_) {}
-    ArrayRef(const ArrayRef<const T, D>& a) : inner_(a.inner_) {}
-    ArrayRef(const ArrayBase<T, D>& a) : inner_(a) {}
-
-    template<typename Axis>
-    index_t dim_impl(Axis axis) const {
-        return inner_.dim(axis);
-    }
-
-    template<typename Axis>
-    index_t stride_impl(Axis axis) const {
-        return inner_.stride(axis);
-    }
-
-    T* data() {
-        return inner_.get();
-    }
-
-    const T* data() const {
-        return inner_.get();
-    }
-
-    const ArrayBase<T, D>& parent() const {
-        return inner_;
-    }
-
-  private:
-    const ArrayBase<T, D>& inner_;
-};
-
-template<typename T, typename D>
-struct ArrayCursor {
-    ArrayCursor(const ArrayRef<T, D>& a) :
-        ptr_(a.data()),
-        parent_(a.parent()) {}
-
-    template<typename Axis, typename Steps>
-    void advance(Axis axis, Steps steps) {
-        ptr_ += steps * parent_.stride(axis);
+    T load() const {
+        return *data_;
     }
 
     void store(T value) {
-        *ptr_ = std::move(value);
-    }
-
-    T eval() const {
-        return *ptr_;
+        *data_ = std::move(value);
     }
 
   private:
-    T* ptr_;
-    const ArrayBase<T, D>& parent_;
+    T* data_;
+    std::array<stride_t, rank> strides_;
 };
 
-template<typename T, typename D>
-struct ArrayCursor<const T, D> {
-    ArrayCursor(const ArrayRef<T, D>& a) :
-        ptr_(a.data()),
-        parent_(a.parent()) {}
-    ArrayCursor(const ArrayRef<const T, D>& a) :
-        ptr_(a.data()),
-        parent_(a.parent()) {}
+template<typename T, size_t N>
+struct array_cursor<const T, N> {
+    static constexpr size_t rank = N;
 
-    template<typename Axis, typename Steps>
-    void advance(Axis axis, Steps steps) {
-        ptr_ += steps * parent_.stride(axis);
+    template<typename L, typename S>
+    array_cursor(array_base<L, S>& base, device_seq) :
+        data_(base.data()),
+        strides_(base.strides()) {}
+
+    template<typename L, typename S>
+    array_cursor(const array_base<L, S>& base, device_seq) :
+        data_(base.data()),
+        strides_(base.strides()) {}
+
+    void advance(index_t axis, index_t steps) {
+        data_ += strides_[axis] * steps;
     }
 
-    T eval() const {
-        return *ptr_;
+    T load() const {
+        return *data_;
     }
 
   private:
-    const T* ptr_;
-    const ArrayBase<T, D>& parent_;
+    const T* data_;
+    std::array<stride_t, rank> strides_;
 };
+
+template<typename T, size_t N>
+using array = array_base<layout::default_layout<N>, storage::heap<T>>;
+
+template<typename T, size_t N>
+using array_ref = array_base<layout::default_layout<N>, storage::span<T>>;
+
+template<typename T>
+using array0 = array<T, 0>;
+template<typename T>
+using array1 = array<T, 1>;
 
 }  // namespace capybara

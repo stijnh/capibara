@@ -1,155 +1,84 @@
 #pragma once
+#include <type_traits>
 
-#include "const_int.h"
+#include "util.h"
 
 namespace capybara {
 
-template<index_t... sizes>
-struct Dimensions;
+template<typename D>
+struct expr;
 
-enum AssignOp {};
+template<typename L, typename S>
+struct array_base;
 
-template<typename T>
-struct ExprTraits;
+template<typename F, typename... Es>
+struct apply_expr;
+
+template<typename F, size_t N = 0>
+struct nullary_expr;
+
+template<typename... Es>
+struct zip_expr;
+
+template<typename C, typename... Es>
+struct select_expr;
+
+template<typename D, typename = void>
+struct expr_traits {};
+
+template<typename D, typename = void>
+struct expr_nested {
+    using type = D;
+};
+
+template<typename D>
+struct expr_nested<const D>: expr_nested<D> {};
+
+template<typename D>
+struct expr_nested<D&&>: expr_nested<D> {};
+
+template<typename D>
+struct expr_nested<D&>: expr_nested<D> {};
+
+template<typename D>
+struct expr_nested<const D&>: expr_nested<const D> {};
 
 template<typename E>
-struct ExprTraits<const E>: ExprTraits<E> {};
+using expr_nested_type = typename expr_nested<E>::type;
+
+template<typename E, typename D, typename = void>
+struct expr_cursor;
+
+template<typename E, typename D>
+using expr_cursor_type = typename expr_cursor<expr_nested_type<E>, D>::type;
+
+template<typename E>
+static constexpr bool is_expr =
+    std::is_base_of<expr<decay_t<E>>, decay_t<E>>::value;
 
 template<typename E, typename = void>
-struct ExprNested {
-    using type = E;
+struct expr_conversion {};
+
+template<typename E>
+struct expr_conversion<E, enable_t<is_expr<E>>> {
+    using type = expr_nested_type<E>;
+
+    static type call(E&& expr) {
+        return type(std::forward<E>(expr));
+    }
 };
 
 template<typename E>
-struct ExprNested<const E>: ExprNested<E> {};
+using into_expr_type = typename expr_conversion<E>::type;
 
 template<typename E>
-struct ExprNested<E&&>: ExprNested<E> {};
-
-template<typename E>
-struct ExprNested<E&>: ExprNested<E> {};
-
-template<typename Derived>
-struct Expr;
-
-template<typename T, typename D>
-struct ArrayBase;
-
-template<typename F, typename D = Dimensions<>>
-struct ValueExpr;
-
-template<typename F, typename D = Dimensions<>>
-struct NullaryExpr;
-
-template<typename Lhs, typename Rhs, AssignOp op>
-struct AssignExpr;
-
-template<size_t n, typename E>
-struct BroadcastExpr;
-
-template<typename E, size_t axis, typename = void>
-struct ExprConstStride;
-
-template<typename E, size_t axis>
-struct ExprConstStride<const E, axis>: ExprConstStride<E, axis> {};
-
-template<typename E, size_t axis, typename = void>
-struct ExprConstDim;
-
-template<typename E, size_t axis>
-struct ExprConstDim<const E, axis>: ExprConstDim<E, axis> {};
-
-namespace detail {
-    template<size_t i, typename E, typename = void>
-    struct ExprDimHelper {
-        static constexpr bool is_constant = false;
-        using type = index_t;
-    };
-
-    template<size_t i, typename E>
-    struct ExprDimHelper<
-        i,
-        E,
-        enable_t<(i < E::rank) && ExprConstDim<E, i>::value >= 0>> {
-        static constexpr bool is_constant = true;
-        static constexpr index_t value = ExprConstDim<E, i>::value;
-        using type = ConstIndex<value>;
-    };
-
-    template<typename E>
-    struct IsExprHelper {
-        template<typename R>
-        static R call(Expr<R>&);
-
-        template<typename R>
-        static const R call(const Expr<R>&);
-
-        template<typename R>
-        static R call(Expr<R>&&);
-
-        template<typename R>
-        static const R call(const Expr<R>&&);
-
-        static void call(...);
-
-        using type = decltype(call(std::declval<E>()));
-        static constexpr bool value = !std::is_same<type, void>::value;
-    };
-
-    template<typename T, typename = void>
-    struct IntoExprHelper {};
-
-    template<typename T>
-    struct IntoExprHelper<T, enable_t<std::is_arithmetic<T>::value>> {
-        using type = ValueExpr<T>;
-
-        static type call(T value) {
-            return {std::move(value)};
-        }
-    };
-
-    template<typename E>
-    struct IntoExprHelper<
-        const E,
-        enable_t<std::is_arithmetic<const E>::value>>: IntoExprHelper<E> {};
-
-    template<typename E>
-    struct IntoExprHelper<E, enable_t<IsExprHelper<E>::value>> {
-        using type = typename ExprNested<typename IsExprHelper<E>::type>::type;
-
-        static type call(E& expr) {
-            return expr.nested();
-        }
-    };
-
-    template<typename E, typename = void>
-    struct IntoExprConvertHelper: ConstFalse {};
-
-    template<typename E>
-    struct IntoExprConvertHelper<E, void_t<typename IntoExprHelper<E>::type>>:
-        ConstTrue {};
-}  // namespace detail
-
-template<typename E, size_t axis>
-static constexpr bool is_expr_dim_const =
-    detail::ExprDimHelper<axis, E>::is_constant;
-
-template<typename E, size_t axis>
-static constexpr index_t expr_dim_const = detail::ExprDimHelper<axis, E>::value;
-
-template<typename E, size_t axis>
-using ExprDim = typename detail::ExprDimHelper<axis, E>::type;
-
-template<typename E>
-static constexpr bool is_expr = detail::IsExprHelper<E>::value;
-
-template<typename E>
-using IntoExpr = typename detail::IntoExprHelper<
-    typename std::remove_reference<E>::type>::type;
-
-template<typename E>
-IntoExpr<E> into_expr(E&& expr) {
-    return detail::IntoExprHelper<E>::call(std::forward<E>(expr));
+into_expr_type<E> into_expr(E&& expr) {
+    return expr_conversion<E>::call(std::forward<E>(expr));
 }
+
+template<typename E>
+using expr_value_type = typename expr_traits<into_expr_type<E>>::value_type;
+
+struct device_seq {};
 
 }  // namespace capybara
