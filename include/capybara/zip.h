@@ -4,54 +4,70 @@
 #include "expr.h"
 
 namespace capybara {
-template<typename... Cs>
+template<template<typename...> class R, typename... Cs>
 struct zip_cursor;
 
-template<typename... Es>
-struct expr_traits<zip_expr<Es...>> {
+template<template<typename...> class R, typename... Es>
+struct expr_traits<zip_expr<R, Es...>> {
     static constexpr size_t rank =
         std::tuple_element<0, std::tuple<Es...>>::type::rank;
     static_assert(fun::all(Es::rank == rank...), "invalid rank of operands");
 
     static constexpr bool is_writable = all(expr_traits<Es>::is_writable...);
     static constexpr bool is_view = false;
-    using value_type = std::tuple<expr_value_type<Es>...>;
+    using value_type = R<expr_value_type<Es>...>;
 };
 
-template<typename... Es, typename D>
-struct expr_cursor<zip_expr<Es...>, D> {
-    using type = zip_cursor<expr_cursor_type<Es, D>...>;
+template<template<typename...> class R, typename... Es, typename D>
+struct expr_cursor<const zip_expr<R, Es...>, D> {
+    using type = zip_cursor<R, expr_cursor_type<const Es, D>...>;
+    static constexpr size_t rank = expr_rank<Es...>;
+
+    template<size_t... Is>CAPYBARA_INLINE
+    static type call_helper(
+        const zip_expr<R, Es...>& expr,
+        dshape<rank> shape,
+        D device,
+        std::index_sequence<Is...>) {
+        return type(std::get<Is>(expr.operands()).cursor(shape, device)...);
+    }
+    CAPYBARA_INLINE
+    static type
+    call(const zip_expr<R, Es...>& expr, dshape<rank> shape, D device) {
+        return call_helper(
+            expr,
+            shape,
+            device,
+            std::index_sequence_for<Es...> {});
+    }
 };
 
-template<typename... Es>
-struct zip_expr: expr<zip_expr<Es...>> {
-    template<typename... Cs>
-    friend struct zip_cursor;
-
+template<template<typename...> class R, typename... Es>
+struct zip_expr: expr<zip_expr<R, Es...>> {
     zip_expr(Es... operands) : operands_(std::move(operands)...) {
         //
     }
 
     CAPYBARA_INLINE
     index_t dimension_impl(index_t axis) const {
-        return std::get<0>(operands_).dimension(axis);
+        return dimension_broadcast<std::tuple<Es...>>::call(axis, operands_);
     }
 
+    CAPYBARA_INLINE
+    const std::tuple<Es...>& operands() const {
+        return operands_;
+    }
+
+  private:
     std::tuple<Es...> operands_;
 };
 
 //
-template<typename... Cs>
+template<template<typename...> class R, typename... Cs>
 struct zip_cursor {
-    using value_type = std::tuple<decltype(std::declval<Cs>().load())...>;
+    using value_type = R<decltype(std::declval<Cs>().load())...>;
 
-    template<typename... Es, typename D>
-    zip_cursor(const zip_expr<Es...>& base, D device) :
-        operands_(seq::map(base.operands_, [&device](auto arg) {
-            return arg.cursor(device);
-        })) {
-        //
-    }
+    zip_cursor(Cs... cursor) : operands_(std::move(cursor)...) {}
 
     CAPYBARA_INLINE
     void advance(index_t axis, index_t steps) {
@@ -82,16 +98,17 @@ struct zip_cursor {
             (std::get<Is>(operands_).store(std::get<Is>(v)), int {})...};
     }
 
+  private:
     std::tuple<Cs...> operands_;
 };
 
-template<typename... Es>
-using expr_zip_type = zip_expr<into_expr_type<Es>...>;
+template<template<typename...> class R, typename... Es>
+using expr_zip_type = zip_expr<R, broadcast_expr_type<Es, Es...>...>;
 
-template<typename... Es>
-expr_zip_type<Es...> zip(Es&&... args) {
-    return zip_expr<into_expr_type<Es>...>(
-        into_expr(std::forward<Es>(args))...);
+template<template<typename...> class R = std::tuple, typename... Es>
+expr_zip_type<R, Es...> zip(Es&&... args) {
+    return expr_zip_type<R, Es...>(
+        broadcast_expr<Es, Es...>(std::forward<Es>(args))...);
 }
 
 }  // namespace capybara

@@ -1,5 +1,6 @@
+#pragma once
+
 #include "forwards.h"
-#include "literals.h"
 
 namespace capybara {
 static constexpr size_t max_index_value = std::numeric_limits<index_t>::max();
@@ -34,14 +35,13 @@ struct const_integer: std::integral_constant<T, I> {
     }
 };
 
-template <typename T, T I>
-CAPYBARA_INLINE
-const_integer<T, -I> operator-(const_integer<T, I>) {
+template<typename T, T I>
+CAPYBARA_INLINE const_integer<T, -I> operator-(const_integer<T, I>) {
     return {};
 }
 
-#define CAPYBARA_CONST_INTEGER_OP(op)                         \
-    template<typename T, T I, T J>              \
+#define CAPYBARA_CONST_INTEGER_OP(op)                       \
+    template<typename T, T I, T J>                          \
     CAPYBARA_INLINE const_integer<T, (I op J)> operator op( \
         const_integer<T, I>,                                \
         const_integer<T, J>) {                              \
@@ -127,8 +127,11 @@ CAPYBARA_INLINE dyn_index<U> into_index(dyn_index<U2> v) {
 template<index_t U = max_index_value, typename T, T I>
 CAPYBARA_INLINE const_index<index_t(I)>
 into_index(std::integral_constant<T, I> v) {
-    static_assert(I >= 0 && I < U, "invalid index");
-    return v;
+    if (I < 0 || I >= U) {  // Should be if constexr
+        throw std::runtime_error("index out of bounds");
+    }
+
+    return {};
 }
 
 template<index_t U, typename T>

@@ -19,7 +19,7 @@ namespace capybara {
 
     template <typename T, size_t N>
     struct indexed_expr: expr<indexed_expr<T, N>> {
-        using shape_type = std::array<index_t, N>;
+        using shape_type = dshape<N>;
 
         indexed_expr(shape_type shape = {}): shape_(shape) {
 

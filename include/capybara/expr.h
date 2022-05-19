@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 
+#include "const_int.h"
 #include "forwards.h"
 
 namespace capybara {
@@ -16,26 +17,20 @@ struct expr_base {
     using traits_type = expr_traits<self_type>;
     static constexpr size_t rank = traits_type::rank;
     using value_type = typename traits_type::value_type;
-    using shape_type = std::array<index_t, rank>;
+    using shape_type = dshape<rank>;
     using nested_type = typename expr_nested<self_type>::type;
     using const_nested_type = typename expr_nested<const self_type>::type;
 
     template<typename D>
-    using cursor_type = typename expr_cursor<nested_type, D>::type;
+    using cursor_type = typename expr_cursor<self_type, D>::type;
     template<typename D>
-    using const_cursor_type = typename expr_cursor<const_nested_type, D>::type;
+    using const_cursor_type = typename expr_cursor<const self_type, D>::type;
 
     static_assert(
         std::is_same<
             value_type,
             decltype(std::declval<cursor_type<device_seq>>().load())>::value,
         "invalid value type: value_type does not match cursor_type().load()");
-    static_assert(
-        std::is_same<
-            value_type,
-            decltype(
-                std::declval<const_cursor_type<device_seq>>().load())>::value,
-        "invalid value type: value_type does not match const_cursor_type().load()");
 
     self_type& self() & {
         return *static_cast<self_type*>(this);
@@ -58,19 +53,34 @@ struct expr_base {
     }
 
     template<typename D>
+    cursor_type<D> cursor(shape_type shape, D device) {
+        return expr_cursor<self_type, D>::call(
+            self(),
+            shape,
+            std::move(device));
+    }
+
+    template<typename D>
     cursor_type<D> cursor(D device) {
-        return cursor_type<D>(nested_type(self()), std::move(device));
+        return cursor(shape(), device);
+    }
+
+    template<typename D>
+    const_cursor_type<D> cursor(shape_type shape, D device) const {
+        return expr_cursor<const self_type, D>::call(
+            self(),
+            shape,
+            std::move(device));
     }
 
     template<typename D>
     const_cursor_type<D> cursor(D device) const {
-        return const_cursor_type<D>(
-            const_nested_type(self()),
-            std::move(device));
+        return cursor(shape(), device);
     }
 
-    index_t dimension(index_t axis) const {
-        return self().dimension_impl(axis);
+    template<typename Axis>
+    index_t dimension(Axis axis) const {
+        return self().dimension_impl(into_index<rank>(axis));
     }
 
     shape_type shape() const {

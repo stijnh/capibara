@@ -1,6 +1,8 @@
 #pragma once
 
+#include <array>
 #include <limits>
+#include <ostream>
 #include <tuple>
 #include <type_traits>
 
@@ -22,6 +24,82 @@ using enable_t = typename std::enable_if<C, T>::type;
 
 template<typename...>
 using void_t = void;
+
+template<typename T, typename... Ts>
+using typed_tuple_array = std::array<T, sizeof...(Ts)>;
+
+template<typename... Ts>
+using tuple_array =
+    typed_tuple_array<typename std::common_type<Ts...>::type, Ts...>;
+
+template<size_t N>
+struct dshape {
+    index_t& operator[](index_t i) {
+        return inner_[i];
+    }
+
+    const index_t& operator[](index_t i) const {
+        return inner_[i];
+    }
+
+    size_t size() const {
+        return N;
+    }
+
+    template<size_t M>
+    bool operator==(const dshape<M>& rhs) const {
+        if (N != M) {
+            return false;
+        }
+
+        for (size_t i = 0; i < N; i++) {
+            if (inner_[i] != rhs[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    template<size_t M>
+    bool operator!=(const dshape<M>& rhs) const {
+        return !(*this == rhs);
+    }
+
+    index_t* begin() {
+        return inner_.begin();
+    }
+
+    index_t* end() {
+        return inner_.end();
+    }
+
+    const index_t* begin() const {
+        return inner_.begin();
+    }
+
+    const index_t* end() const {
+        return inner_.end();
+    }
+
+    std::array<index_t, N> inner_;
+};
+
+template<size_t N>
+std::ostream& operator<<(std::ostream& stream, const dshape<N>& shape) {
+    stream << "(";
+
+    for (size_t i = 0; i < N; i++) {
+        stream << shape[i];
+
+        if (i == 0 || i != N - 1) {
+            stream << ", ";
+        }
+    }
+
+    stream << ")";
+    return stream;
+}
 
 /// returns `lhs+rhs`, or `numeric_limits<T>::max` if the addition overflows.
 template<typename T>

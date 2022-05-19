@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <sstream>
 
 #include "expr.h"
 
@@ -109,7 +110,7 @@ namespace layout {
     template<size_t N>
     struct row_major {
         static constexpr size_t rank = N;
-        using shape_type = std::array<index_t, N>;
+        using shape_type = dshape<N>;
 
         row_major() = default;
         row_major(shape_type shape) {
@@ -171,14 +172,41 @@ struct expr_nested<const array_base<L, S>> {
     using type = array_base<L, storage::span<typename S::const_value_type>>;
 };
 
+template<size_t N>
+void assert_same_shape(dshape<N> lhs, dshape<N> rhs) {
+    if (lhs != rhs) {
+        std::stringstream ss;
+        ss << "cannot broadcast shape " << lhs << " to " << rhs;
+        throw std::runtime_error(ss.str());
+    }
+}
+
 template<typename L, typename S, typename D>
 struct expr_cursor<array_base<L, S>, D> {
     using type = array_cursor<typename S::value_type, L::rank>;
+
+    static type call(array_base<L, S>& expr, dshape<L::rank> shape, D device) {
+        if (expr.shape() != shape) {
+            assert_same_shape(expr.shape(), shape);
+        }
+
+        return type(expr.data(), expr.strides());
+    }
 };
 
 template<typename L, typename S, typename D>
 struct expr_cursor<const array_base<L, S>, D> {
     using type = array_cursor<typename S::const_value_type, L::rank>;
+
+    CAPYBARA_INLINE
+    static type
+    call(const array_base<L, S>& expr, dshape<L::rank> shape, D device) {
+        if (expr.shape() != shape) {
+            assert_same_shape(expr.shape(), shape);
+        }
+
+        return type(expr.data(), expr.strides());
+    }
 };
 
 template<typename L, typename S>
@@ -248,16 +276,11 @@ struct array_base: expr<array_base<L, S>> {
 template<typename T, size_t N>
 struct array_cursor {
     static constexpr size_t rank = N;
+    using strides_type = std::array<stride_t, rank>;
 
-    template<typename L, typename S>
-    array_cursor(array_base<L, S>& base, device_seq) :
-        data_(base.data()),
-        strides_(base.strides()) {}
-
-    template<typename L, typename S>
-    array_cursor(const array_base<L, S>& base, device_seq) :
-        data_(base.data()),
-        strides_(base.strides()) {}
+    array_cursor(T* data, strides_type strides) :
+        data_(data),
+        strides_(strides) {}
 
     void advance(index_t axis, index_t steps) {
         data_ += strides_[axis] * steps;
@@ -273,22 +296,17 @@ struct array_cursor {
 
   private:
     T* data_;
-    std::array<stride_t, rank> strides_;
+    strides_type strides_;
 };
 
 template<typename T, size_t N>
 struct array_cursor<const T, N> {
     static constexpr size_t rank = N;
+    using strides_type = std::array<stride_t, rank>;
 
-    template<typename L, typename S>
-    array_cursor(array_base<L, S>& base, device_seq) :
-        data_(base.data()),
-        strides_(base.strides()) {}
-
-    template<typename L, typename S>
-    array_cursor(const array_base<L, S>& base, device_seq) :
-        data_(base.data()),
-        strides_(base.strides()) {}
+    array_cursor(const T* data, strides_type strides) :
+        data_(data),
+        strides_(strides) {}
 
     void advance(index_t axis, index_t steps) {
         data_ += strides_[axis] * steps;
@@ -300,7 +318,7 @@ struct array_cursor<const T, N> {
 
   private:
     const T* data_;
-    std::array<stride_t, rank> strides_;
+    strides_type strides_;
 };
 
 template<typename T, size_t N>

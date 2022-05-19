@@ -21,8 +21,29 @@ struct expr_traits<apply_expr<F, Es...>> {
 };
 
 template<typename F, typename... Es, typename D>
-struct expr_cursor<apply_expr<F, Es...>, D> {
-    using type = apply_cursor<F, expr_cursor_type<Es, D>...>;
+struct expr_cursor<const apply_expr<F, Es...>, D> {
+    using type = apply_cursor<F, expr_cursor_type<const Es, D>...>;
+    static constexpr size_t rank = expr_rank<Es...>;
+
+    template<size_t... Is>
+    static type call_helper(
+        const apply_expr<F, Es...>& expr,
+        dshape<rank> shape,
+        D device,
+        std::index_sequence<Is...>) {
+        return type(
+            expr.functor(),
+            std::get<Is>(expr.operands()).cursor(shape, device)...);
+    }
+
+    static type
+    call(const apply_expr<F, Es...>& expr, dshape<rank> shape, D device) {
+        return call_helper(
+            expr,
+            shape,
+            device,
+            std::index_sequence_for<Es...> {});
+    }
 };
 
 template<typename F, typename... Es>
@@ -35,9 +56,18 @@ struct apply_expr: expr<apply_expr<F, Es...>> {
 
     CAPYBARA_INLINE
     index_t dimension_impl(index_t axis) const {
-        return std::get<0>(operands_).dimension(axis);
+        return dimension_broadcast<std::tuple<Es...>>::call(axis, operands_);
     }
 
+    const F& functor() const {
+        return function_;
+    }
+
+    const std::tuple<Es...>& operands() const {
+        return operands_;
+    }
+
+  private:
     F function_;
     std::tuple<Es...> operands_;
 };
@@ -48,14 +78,9 @@ struct apply_cursor {
     using value_type =
         typename invoke_result<F, decltype(std::declval<Cs>().load())...>::type;
 
-    template<typename... Es, typename D>
-    apply_cursor(const apply_expr<F, Es...>& base, D device) :
-        function_(base.function_),
-        operands_(seq::map(base.operands_, [&device](auto arg) {
-            return arg.cursor(device);
-        })) {
-        //
-    }
+    apply_cursor(F function, Cs... cursor) :
+        function_(std::move(function)),
+        operands_(std::move(cursor)...) {}
 
     CAPYBARA_INLINE
     void advance(index_t axis, index_t steps) {
@@ -80,13 +105,13 @@ struct apply_cursor {
 };
 
 template<typename F, typename... Es>
-using expr_map_type = apply_expr<F, into_expr_type<Es>...>;
+using expr_map_type = apply_expr<F, broadcast_expr_type<Es, Es...>...>;
 
 template<typename F, typename... Es>
-expr_map_type<F, Es...> map(F fun, Es&&... args) {
-    return expr_map_type<F, into_expr_type<Es>...>(
+CAPYBARA_INLINE expr_map_type<F, Es...> map(F fun, Es&&... args) {
+    return expr_map_type<F, Es...>(
         std::move(fun),
-        into_expr(std::forward<Es>(args))...);
+        broadcast_expr<Es, Es...>(std::forward<Es>(args))...);
 }
 
 }  // namespace capybara
