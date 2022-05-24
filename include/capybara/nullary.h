@@ -173,14 +173,12 @@ namespace functors {
 }  // namespace functors
 
 template<typename T = void, size_t N = 0>
-        CAPYBARA_INLINE
-nullary_expr<functors::zero<T>, N> zeros(dshape<N> shape = {}) {
+CAPYBARA_INLINE nullary_expr<functors::zero<T>, N> zeros(dshape<N> shape = {}) {
     return {{}, shape};
 }
 
 template<typename T = void, size_t N = 0>
-        CAPYBARA_INLINE
-nullary_expr<functors::one<T>, N> ones(dshape<N> shape = {}) {
+CAPYBARA_INLINE nullary_expr<functors::one<T>, N> ones(dshape<N> shape = {}) {
     return {{}, shape};
 }
 
@@ -188,14 +186,12 @@ template<typename T, size_t N = 0>
 using scalar_type = nullary_expr<functors::value<decay_t<T>>, N>;
 
 template<typename T, size_t N = 0>
-        CAPYBARA_INLINE
-scalar_type<T, N> full(T&& value, dshape<N> shape = {}) {
+CAPYBARA_INLINE scalar_type<T, N> full(T&& value, dshape<N> shape = {}) {
     return {{std::forward<T>(value)}, shape};
 }
 
 template<typename T>
-CAPYBARA_INLINE
-scalar_type<T, 0> scalar(T&& value) {
+CAPYBARA_INLINE scalar_type<T, 0> scalar(T&& value) {
     return {{std::forward<T>(value)}};
 }
 

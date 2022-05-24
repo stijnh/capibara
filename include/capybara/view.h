@@ -46,12 +46,9 @@ namespace view {
             }
         }
 
-        template<typename F, typename D>
-        void initialize_cursor(F delegate, D dim) const {}
-
-        template<typename E>
-        CAPYBARA_INLINE dshape<rank_input>
-        convert_shape(E expr, dshape<rank_output> shape) const {
+        template<typename E, typename D>
+        CAPYBARA_INLINE expr_cursor_type<const E, D>
+        cursor(const E& expr, dshape<rank_output> shape, D device) const {
             if (shape[axis_] != length_ && length_ != 1) {
                 throw std::runtime_error();
             }
@@ -64,7 +61,7 @@ namespace view {
                 new_shape[i] = shape[i + 1];
             }
 
-            return new_shape;
+            return expr.cursor(new_shape, device);
         }
 
       private:
@@ -104,12 +101,12 @@ namespace view {
             }
         }
 
-        template<typename E>
-        CAPYBARA_INLINE dshape<rank_input>
-        convert_shape(E expr, dshape<rank_output> shape) const {
+        template<typename E, typename D>
+        CAPYBARA_INLINE expr_cursor_type<const E, D>
+        cursor(const E& expr, dshape<rank_output> shape, D device) const {
             index_t length = expr.dimension(axis_);
 
-            if (length <= index_) {
+            if (index_ >= length) {
                 throw std::runtime_error("index out of bounds");
             }
 
@@ -124,12 +121,9 @@ namespace view {
                 new_shape[i + 1] = shape[i];
             }
 
-            return new_shape;
-        }
-
-        template<typename F, typename D>
-        CAPYBARA_INLINE void initialize_cursor(F delegate, D dim) const {
-            delegate(axis_, index_);
+            auto cursor = expr.cursor(new_shape, device);
+            cursor.advance(axis_, index_);
+            return cursor;
         }
 
       private:
@@ -162,17 +156,16 @@ namespace view {
             };
         }
 
-        template<typename E>
-        CAPYBARA_INLINE dshape<rank_input>
-        convert_shape(E expr, dshape<rank_output> shape) const {
-            return shape;
-        }
+        template<typename E, typename D>
+        CAPYBARA_INLINE expr_cursor_type<const E, D>
+        cursor(const E& expr, dshape<rank_output> shape, D device) const {
+            auto cursor = expr.cursor(shape, device);
 
-        template<typename F, typename D>
-        CAPYBARA_INLINE void initialize_cursor(F delegate, D dim) const {
-            using namespace literals;
-            delegate(axis_, dim(axis_));
-            delegate(axis_, -1_c);
+            if (shape[axis_] > 0) {
+                cursor.advance(axis_, shape[axis_] - 1);
+            }
+
+            return cursor;
         }
 
       private:
@@ -206,25 +199,24 @@ namespace view {
             delegate(axis, 1_stride);
         }
 
-        template<typename E>
-        CAPYBARA_INLINE dshape<N> convert_shape(E expr, dshape<N> shape) const {
-            if (shape[axis_] != length_) {
-                throw std::runtime_error("invalid shape");
-            }
-
+        template<typename E, typename D>
+        CAPYBARA_INLINE expr_cursor_type<const E, D>
+        cursor(const E& expr, dshape<rank_output> shape, D device) const {
             index_t expr_length = expr.dimension(axis_);
 
             if (start_ + length_ > expr_length) {
                 throw std::runtime_error("index out of bounds");
             }
 
-            shape[axis_] = expr_length;
-            return shape;
-        }
+            if (shape[axis_] != length_
+            && !(length_ == 1 && expr_length == 1)) {
+                throw std::runtime_error("invalid shape");
+            }
 
-        template<typename F, typename D>
-        CAPYBARA_INLINE void initialize_cursor(F delegate, D dim) const {
-            delegate(axis_, start_);
+            shape[axis_] = expr_length;
+            auto cursor = expr.cursor(shape, device);
+            cursor.advance(axis_, start_);
+            return cursor;
         }
 
       private:
@@ -261,20 +253,18 @@ namespace view {
             }
         }
 
-        template<typename E>
-        CAPYBARA_INLINE dshape<N> convert_shape(E expr, dshape<N> shape) const {
+        template<typename E, typename D>
+        CAPYBARA_INLINE expr_cursor_type<const E, D>
+        cursor(const E& expr, dshape<rank_output> shape, D device) const {
             index_t expr_length = expr.dimension(axis_);
 
-            if (expr_length / stride_ != shape[axis_]) {
+            if (stride_ <= 0 || expr_length / stride_ != shape[axis_]) {
                 throw std::runtime_error("failed to broadcast shape");
             }
 
             shape[axis_] = expr_length;
-            return shape;
+            return expr.cursor(shape, device);
         }
-
-        template<typename F, typename D>
-        CAPYBARA_INLINE void initialize_cursor(F delegate, D dim) const {}
 
       private:
         Axis axis_;
@@ -304,19 +294,20 @@ namespace view {
                 [&delegate](auto i) { delegate(const_index<i> {}, 1_stride); });
         }
 
-        template<typename E>
-        CAPYBARA_INLINE dshape<rank_input>
-        convert_shape(E expr, dshape<1> shape) const {
+        template<typename E, typename D>
+        CAPYBARA_INLINE expr_cursor_type<const E, D>
+        cursor(const E& expr, dshape<1> shape, D device) const {
             dshape<rank_input> new_shape;
             for (size_t i = 0; i < rank_input; i++) {
                 new_shape[i] = expr.dimension(i);
+
+                if (shape[0] > new_shape[i]) {
+                    throw std::runtime_error("invalid shape");
+                }
             }
 
-            return new_shape;
+            return expr.cursor(new_shape, device);
         }
-
-        template<typename F, typename D>
-        CAPYBARA_INLINE void initialize_cursor(F delegate, D dim) const {}
     };
 
     template<size_t N, size_t P>
@@ -344,19 +335,16 @@ namespace view {
             }
         }
 
-        template<typename E>
-        CAPYBARA_INLINE dshape<rank_input>
-        convert_shape(E expr, dshape<rank_output> shape) const {
+        template<typename E, typename D>
+        CAPYBARA_INLINE expr_cursor_type<const E, D>
+        cursor(const E& expr, dshape<rank_output> shape, D device) const {
             dshape<rank_input> new_shape;
             for (size_t i = 0; i < rank_input; i++) {
                 new_shape[i] = shape[i + P];
             }
 
-            return new_shape;
+            return expr.cursor(new_shape, device);
         }
-
-        template<typename F, typename D>
-        CAPYBARA_INLINE void initialize_cursor(F delegate, D dim) const {}
     };
 
 }  // namespace view
@@ -365,15 +353,11 @@ template<typename V, typename C>
 struct view_cursor;
 
 template<typename V, typename C>
-struct apply_cursor_view {
+struct apply_view_cursor {
     using type = view_cursor<V, C>;
 
     CAPYBARA_INLINE
-    static type call(V view, C cursor, dshape<V::rank_input> shape) {
-        view.initialize_cursor(
-            [&cursor](auto axis, auto steps) { cursor.advance(axis, steps); },
-            [&shape](auto i) { return shape[i]; });
-
+    static type call(V view, C cursor) {
         return view_cursor<V, C>(std::move(view), std::move(cursor));
     }
 };
@@ -389,19 +373,15 @@ struct expr_traits<view_expr<V, E>> {
 
 template<typename V, typename E, typename D>
 struct expr_cursor<const view_expr<V, E>, D> {
-    using apply_type = apply_cursor_view<V, expr_cursor_type<const E, D>>;
-    using type = typename apply_type::type;
+    using cursor_type = expr_cursor_type<const E, D>;
+    using type = typename apply_view_cursor<V, cursor_type>::type;
 
     CAPYBARA_INLINE
     static type
     call(const view_expr<V, E>& expr, dshape<V::rank_output> shape, D device) {
-        const E& operand = expr.operand();
-        dshape<V::rank_input> new_shape =
-            expr.view().convert_shape(operand, shape);
-        return apply_type::call(
+        return apply_view_cursor<V, cursor_type>::call(
             expr.view(),
-            operand.cursor(new_shape, device),
-            new_shape);
+            expr.view().cursor(expr.operand(), shape, device));
     }
 };
 
@@ -416,7 +396,7 @@ struct view_expr: expr<view_expr<V, E>> {
         view_(std::move(view)),
         expr_(std::move(expr)) {}
 
-        CAPYBARA_INLINE
+    CAPYBARA_INLINE
     index_t dimension_impl(index_t axis) const {
         const E& expr = expr_;
 
@@ -469,8 +449,7 @@ struct view_cursor {
     }
 
     template<typename Axis, typename Steps>
-    CAPYBARA_INLINE
-    void advance(Axis axis, Steps steps) {
+    CAPYBARA_INLINE void advance(Axis axis, Steps steps) {
         C& cursor = cursor_;
 
         view_.advance(axis, [steps, &cursor](auto new_axis, auto new_steps) {

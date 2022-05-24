@@ -2,6 +2,7 @@
 #include <tuple>
 
 #include "expr.h"
+#include "view.h"
 
 namespace capybara {
 template<template<typename...> class R, typename... Cs>
@@ -13,7 +14,7 @@ struct expr_traits<zip_expr<R, Es...>> {
         std::tuple_element<0, std::tuple<Es...>>::type::rank;
     static_assert(fun::all(Es::rank == rank...), "invalid rank of operands");
 
-    static constexpr bool is_writable = all(expr_traits<Es>::is_writable...);
+    static constexpr bool is_writable = fun::all(expr_traits<Es>::is_writable...);
     static constexpr bool is_view = false;
     using value_type = R<expr_value_type<Es>...>;
 };
@@ -23,14 +24,15 @@ struct expr_cursor<const zip_expr<R, Es...>, D> {
     using type = zip_cursor<R, expr_cursor_type<const Es, D>...>;
     static constexpr size_t rank = expr_rank<Es...>;
 
-    template<size_t... Is>CAPYBARA_INLINE
-    static type call_helper(
+    template<size_t... Is>
+    CAPYBARA_INLINE static type call_helper(
         const zip_expr<R, Es...>& expr,
         dshape<rank> shape,
         D device,
         std::index_sequence<Is...>) {
         return type(std::get<Is>(expr.operands()).cursor(shape, device)...);
     }
+
     CAPYBARA_INLINE
     static type
     call(const zip_expr<R, Es...>& expr, dshape<rank> shape, D device) {
@@ -39,6 +41,30 @@ struct expr_cursor<const zip_expr<R, Es...>, D> {
             shape,
             device,
             std::index_sequence_for<Es...> {});
+    }
+};
+
+template<template<typename...> class R, typename V, typename... Cs>
+struct apply_view_cursor<V, zip_cursor<R, Cs...>> {
+    using type = zip_cursor<R, typename apply_view_cursor<V, Cs>::type...>;
+
+    template<size_t... Is>
+    CAPYBARA_INLINE static type call_helper(
+        V view,
+        zip_cursor<R, Cs...> cursor,
+        std::index_sequence<Is...>) {
+        return type(apply_view_cursor<V, Cs>::call(
+            view,
+            std::get<Is>(cursor.operands()))...);
+    }
+
+    CAPYBARA_INLINE
+    static type
+    call(V view, zip_cursor<R, Cs...> cursor) {
+        return call_helper(
+            std::move(view),
+            std::move(cursor),
+            std::index_sequence_for<Cs...> {});
     }
 };
 
@@ -74,6 +100,11 @@ struct zip_cursor {
         seq::for_each(operands_, [axis, steps](auto cursor) {
             cursor.advance(axis, steps);
         });
+    }
+
+    CAPYBARA_INLINE
+    const std::tuple<Cs...>& operands() const {
+        return operands_;
     }
 
     CAPYBARA_INLINE

@@ -24,8 +24,7 @@ struct expr_cursor<const select_expr<C, Es...>, D> {
     static constexpr size_t rank = expr_rank<C, Es...>;
 
     template<size_t... Is>
-    CAPYBARA_INLINE
-    static type call_helper(
+    CAPYBARA_INLINE static type call_helper(
         const select_expr<C, Es...>& expr,
         dshape<rank> shape,
         D device,
@@ -89,22 +88,35 @@ namespace {
     template<typename T, size_t I, size_t J, size_t... Rest>
     struct selector_helper<T, std::index_sequence<I, J, Rest...>> {
         template<typename S, typename Tuple>
-        CAPYBARA_INLINE
-        static T call(S selection, Tuple& tuple) {
+        CAPYBARA_INLINE static T load(S selection, Tuple& tuple) {
             return selection == I
-                ? std::get<I>(tuple).load()
-                : selector_helper<T, std::index_sequence<J, Rest...>>::call(
+            ? std::get<I>(tuple).load()
+            : selector_helper<T, std::index_sequence<J, Rest...>>::call(
                     selection,
                     tuple);
+        }
+
+        template<typename S, typename Tuple>
+        CAPYBARA_INLINE static void store(S selection, Tuple& tuple, T value) {
+            return selection == I
+            ? std::get<I>(tuple).store(std::move(value))
+            : selector_helper<T, std::index_sequence<J, Rest...>>::store(
+                    selection,
+                    tuple,
+                    std::move(value));
         }
     };
 
     template<typename T, size_t I>
     struct selector_helper<T, std::index_sequence<I>> {
         template<typename S, typename Tuple>
-        CAPYBARA_INLINE
-        static T call(S selection, Tuple& tuple) {
+        CAPYBARA_INLINE static T load(S selection, Tuple& tuple) {
             return std::get<I>(tuple).load();
+        }
+
+        template<typename S, typename Tuple>
+        CAPYBARA_INLINE static void store(S selection, Tuple& tuple, T value) {
+            return std::get<I>(tuple).store(std::move(value));
         }
     };
 }  // namespace
@@ -128,10 +140,17 @@ struct select_cursor {
 
     CAPYBARA_INLINE
     value_type load() {
-        static constexpr size_t N = sizeof...(Cs);
-        return selector_helper<value_type, std::make_index_sequence<N>>::call(
-            selector_.load(),
-            operands_);
+        return selector_helper<value_type, std::index_sequence_for<Cs...>>::load(
+                selector_.load(),
+                operands_);
+    }
+
+    CAPYBARA_INLINE
+    value_type store(value_type v) {
+        return selector_helper<value_type, std::index_sequence_for<Cs...>>::store(
+                selector_.load(),
+                operands_,
+                std::move(v));
     }
 
   private:

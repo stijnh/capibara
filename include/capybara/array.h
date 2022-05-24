@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "expr.h"
+#include "view.h"
 
 namespace capybara {
 
@@ -271,6 +272,18 @@ struct array_base: expr<array_base<L, S>> {
   private:
     L layout_;
     S storage_;
+};
+
+
+template<typename T, size_t N, typename V>
+struct apply_view_cursor<V, array_cursor<T, N>> {
+    using type = array_cursor<T, V::rank_output>;
+
+    //
+    static type call(V view, array_cursor<T, N> cursor) {
+        throw std::runtime_error("oh no");
+    }
+
 };
 
 template<typename T, size_t N>

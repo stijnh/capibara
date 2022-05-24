@@ -2,6 +2,7 @@
 #include <tuple>
 
 #include "expr.h"
+#include "view.h"
 
 namespace capybara {
 template<typename F, typename... Cs>
@@ -46,6 +47,32 @@ struct expr_cursor<const apply_expr<F, Es...>, D> {
     }
 };
 
+template<typename F, typename V, typename... Cs>
+struct apply_view_cursor<V, apply_cursor<F, Cs...>> {
+    using type = apply_cursor<F, typename apply_view_cursor<V, Cs>::type...>;
+
+    template<size_t... Is>
+    CAPYBARA_INLINE static type call_helper(
+        V view,
+        apply_cursor<F, Cs...> cursor,
+        std::index_sequence<Is...>) {
+        return type(
+            cursor.functor(),
+            apply_view_cursor<V, Cs>::call(
+                view,
+                std::get<Is>(cursor.operands()))...);
+    }
+
+    CAPYBARA_INLINE
+    static type
+    call(V view, apply_cursor<F, Cs...> cursor) {
+        return call_helper(
+            std::move(view),
+            std::move(cursor),
+            std::index_sequence_for<Cs...> {});
+    }
+};
+
 template<typename F, typename... Es>
 struct apply_expr: expr<apply_expr<F, Es...>> {
     apply_expr(F function, Es... operands) :
@@ -81,6 +108,14 @@ struct apply_cursor {
     apply_cursor(F function, Cs... cursor) :
         function_(std::move(function)),
         operands_(std::move(cursor)...) {}
+
+    const F& functor() const {
+        return function_;
+    }
+
+    const std::tuple<Cs...>& operands() const {
+        return operands_;
+    }
 
     CAPYBARA_INLINE
     void advance(index_t axis, index_t steps) {
